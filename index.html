@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#e9ece5">
+  <meta name="description" content="Phòng thử nghiệm AI xe tăng: dự đoán đường đạn, chọn chiến thuật và đấu sinh tồn. Chạy hoàn toàn bằng HTML, CSS và JavaScript.">
+  <title>Tank Lab — Đấu trường AI</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232e4a35'/%3E%3Cpath d='M8 13h16v13H8zM14 5h4v16h-4z' fill='%23bfe478'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+  <script defer src="vat-ly.js"></script>
+  <script defer src="ai.js"></script>
+  <script defer src="game.js"></script>
+</head>
+<body>
+  <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
+    <symbol id="i-tank" viewBox="0 0 24 24"><rect x="4" y="9" width="16" height="12" rx="3"/><path d="M8 9v12m8-12v12M12 3v11m-2 0h4v4h-4z"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="m9 5 11 7-11 7z"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></symbol>
+    <symbol id="i-reset" viewBox="0 0 24 24"><path d="M4 10a8 8 0 1 1 1 8M4 4v6h6"/></symbol>
+    <symbol id="i-cross" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 2v5m0 10v5M2 12h5m10 0h5"/></symbol>
+    <symbol id="i-brain" viewBox="0 0 24 24"><path d="M12 5c-3-4-7-1-6 2-4 0-4 6-1 7-2 4 2 7 5 5l2-2m0-12c3-4 7-1 6 2 4 0 4 6 1 7 2 4-2 7-5 5l-2-2V5m-6 6 3 1m9-1-3 1M8 16l2-2m6 2-2-2"/></symbol>
+    <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 9a3 3 0 1 1 4 3c-1 .5-1 1-1 2m0 3v.1"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5"/></symbol>
+    <symbol id="i-expand" viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5M3 3l6 6m12-6-6 6M3 21l6-6m12 6-6-6"/></symbol>
+    <symbol id="i-collapse" viewBox="0 0 24 24"><path d="M3 8h5V3m8 0v5h5M3 16h5v5m8 0v-5h5M8 8 3 3m13 5 5-5M8 16l-5 5m13-5 5 5"/></symbol>
+  </defs></svg>
+
+  <aside class="rail" aria-label="Điều hướng">
+    <a class="brand-mark" href="#" aria-label="Tank Lab"><svg><use href="#i-tank"/></svg></a>
+    <a class="rail-item active" href="#dau-truong" aria-label="Đấu trường" title="Đấu trường"><svg><use href="#i-cross"/></svg></a>
+    <a class="rail-item" href="#giai-thich" aria-label="Tìm hiểu AI" title="Tìm hiểu AI"><svg><use href="#i-brain"/></svg></a>
+    <a class="rail-item rail-bottom" href="HUONG-DAN.md" target="_blank" aria-label="Mở hướng dẫn" title="Hướng dẫn"><svg><use href="#i-help"/></svg></a>
+    <span class="rail-version">v1.0</span>
+  </aside>
+
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="wordmark" href="#">TANK<span>LAB</span><span class="brand-divider"></span><small>PHÒNG THỬ NGHIỆM AI</small></a>
+      <span class="local-tag"><i></i> Chạy ngay trên trình duyệt</span>
+    </header>
+    <main id="dau-truong">
+      <section class="page-heading">
+        <div><div class="eyebrow">MÔ PHỎNG CHIẾN THUẬT / 01</div><h1>Đấu trường sinh tồn<span>.</span></h1><p>Một chiến trường. Nhiều bộ não. Chỉ một xe tăng sống sót.</p></div>
+        <span class="mode-tag"><svg><use href="#i-brain"/></svg> AI tự hành <span>×</span> Đấu tự do</span>
+      </section>
+
+      <section class="toolbar" aria-label="Thiết lập trận đấu">
+        <div class="actions">
+          <button id="nut-bat-dau" class="button primary"><svg><use href="#i-play"/></svg><span>Bắt đầu</span></button>
+          <button id="nut-dat-lai" class="button secondary" title="Đặt lại trận đấu (R)"><svg><use href="#i-reset"/></svg><span>Đặt lại</span></button>
+        </div>
+        <div class="toolbar-divider"></div>
+        <label class="field">ĐỐI THỦ<select id="so-bot" aria-label="Số lượng bot"><option value="1">01 bot</option><option value="2">02 bot</option><option value="3">03 bot</option><option value="4">04 bot</option><option value="5" selected>05 bot</option><option value="6">06 bot</option><option value="7">07 bot</option><option value="8">08 bot</option><option value="9">09 bot</option><option value="10">10 bot</option></select></label>
+        <label class="field">CẤP BOT<select id="cap-bot" aria-label="Cấp độ bot" title="Cấp càng cao, bot càng phản ứng nhanh, ngắm bắn chính xác và né đạn tốt."><option value="1">01 · Tập sự</option><option value="2">02 · Mới chơi</option><option value="3">03 · Cơ bản</option><option value="4">04 · Linh hoạt</option><option value="5" selected>05 · Cân bằng</option><option value="6">06 · Khá</option><option value="7">07 · Tinh nhuệ</option><option value="8">08 · Chuyên gia</option><option value="9">09 · Cao thủ</option><option value="10">10 · Bậc thầy</option></select></label>
+        <label class="field">CHẾ ĐỘ<select id="che-do" aria-label="Chế độ máu"><option value="3">3 HP · Chiến thuật</option><option value="1">1 phát · Sinh tử</option></select></label>
+        <div class="field random-field">BẢN ĐỒ &amp; BOT<span class="random-label">Ngẫu nhiên mỗi trận</span></div>
+        <div class="speed-control"><span>TỐC ĐỘ</span><div class="segmented" role="group" aria-label="Tốc độ mô phỏng"><button data-toc-do="0.5" aria-pressed="false">½×</button><button class="selected" data-toc-do="1" aria-pressed="true">1×</button><button data-toc-do="2" aria-pressed="false">2×</button></div></div>
+      </section>
+
+      <div class="battle-grid" id="khung-tran-dau">
+        <section class="arena-card" id="khung-dau-truong" aria-label="Bản đồ trận đấu">
+          <div class="panel-heading arena-heading">
+            <div class="arena-status"><span class="status-dot" id="cham-trang-thai"></span><strong id="trang-thai-tran">SẴN SÀNG</strong><span class="arena-name">BẢN ĐỒ NGẪU NHIÊN</span></div>
+            <div class="map-controls" id="cac-nut-ban-do">
+              <button type="button" id="nut-chay-toan-man-hinh" class="button primary chi-toan-man-hinh"><svg><use href="#i-play"/></svg><span>Bắt đầu</span></button>
+              <button type="button" id="nut-dat-lai-toan-man-hinh" class="button secondary chi-toan-man-hinh" title="Đặt lại trận đấu"><svg><use href="#i-reset"/></svg><span>Đặt lại</span></button>
+              <label class="switch-label"><input type="checkbox" id="hien-du-doan" checked><span class="switch"></span>Hiển thị tư duy AI</label>
+              <button type="button" id="nut-toan-man-hinh" class="button fullscreen-button" aria-label="Toàn màn hình" aria-pressed="false" title="Phóng to đấu trường toàn màn hình"><svg><use href="#i-expand"/></svg><span>Toàn màn hình</span></button>
+            </div>
+          </div>
+          <div class="arena-viewport">
+            <canvas id="ban-do" width="960" height="960" aria-label="Đấu trường hình vuông. Xe của bạn có tên và màu do bạn chọn, được đánh dấu bằng vòng tròn nét đứt. Theo dõi kết quả trong bảng trạng thái bên cạnh.">Trình duyệt cần hỗ trợ Canvas để hiển thị trận đấu.</canvas>
+            <div class="map-coordinate coordinate-top">00 — 960</div><div class="map-coordinate coordinate-bottom">TANK LAB / SIMULATION</div>
+            <div class="arena-notice" id="thong-bao-san"><span class="notice-icon"><svg><use href="#i-tank"/></svg></span><div><strong>Đội hình đã sẵn sàng</strong><span>Nhấn Bắt đầu để các AI tranh tài.</span></div><kbd>SPACE</kbd></div>
+            <div class="result-overlay" id="ket-qua" hidden><div class="result-card"><div class="eyebrow">TRẬN ĐẤU KẾT THÚC</div><svg class="result-icon"><use href="#i-tank"/></svg><h2 id="tieu-de-ket-qua"></h2><p id="mo-ta-ket-qua"></p><button class="button primary" id="nut-choi-lai"><svg><use href="#i-reset"/></svg>Đấu lại</button></div></div>
+          </div>
+          <div class="arena-footer"><div class="legend"><span><i class="legend-dot player"></i>Xe của bạn</span><span><i class="legend-dot bot"></i>Đối thủ</span><span><i class="legend-line"></i>Đường đã chọn</span><span><i class="legend-target"></i>Điểm đón bắn</span></div><span class="map-size">960 × 960</span></div>
+        </section>
+
+        <aside class="telemetry" aria-label="Thông tin trận đấu">
+          <section class="panel match-panel"><div class="panel-heading"><h2>TOÀN CẢNH</h2><span class="tiny-label" id="nhan-truc-tiep">CHỜ LỆNH</span></div><div class="match-metrics"><div><span>Còn sống</span><strong id="so-con-song">6 <small>/ 6</small></strong></div><div><span>Thời gian</span><strong id="thoi-gian">00:00</strong></div><div><span>Đạn đang bay</span><strong id="so-dan">00</strong></div></div><div class="zone-status"><span class="zone-symbol">⌑</span><span id="vung-an-toan">Vùng an toàn thu hẹp sau 45 giây</span></div></section>
+
+          <section class="panel ai-panel"><div class="panel-heading"><h2><svg><use href="#i-brain"/></svg>BỘ NÃO CỦA BẠN</h2><span class="chip">DỰ ĐOÁN</span></div><div class="player-customization" role="group" aria-label="Tùy chỉnh xe của bạn">
+            <label class="name-field" for="ten-nguoi-choi">TÊN XE CỦA BẠN<input id="ten-nguoi-choi" type="text" value="Tiên Phong" maxlength="24" placeholder="Tiên Phong" autocomplete="off" spellcheck="false" aria-describedby="huong-dan-nhan-dang"></label>
+            <label class="color-field" for="mau-nguoi-choi">MÀU XE<input id="mau-nguoi-choi" type="color" value="#b7d77b" title="Chọn màu xe của bạn" aria-describedby="huong-dan-nhan-dang"></label>
+            <p id="huong-dan-nhan-dang">Đặt tên và chọn màu trước khi bắt đầu.</p>
+          </div><div class="player-summary"><div class="player-avatar"><svg><use href="#i-tank"/></svg></div><div><strong><b id="ten-xe-hien-thi">Tiên Phong</b> <span>BẠN</span></strong><p id="trang-thai-xe">Đang chờ xuất phát</p></div><div class="hp-text" id="mau-xe">3<small>/3 HP</small></div></div><div class="hp-track"><div id="thanh-mau"></div></div><div class="ai-decision"><span class="decision-kicker">QUYẾT ĐỊNH HIỆN TẠI</span><strong id="quyet-dinh">Quan sát chiến trường</strong><div class="decision-stats"><span><b id="so-ung-vien">15</b> phương án</span><i></i><span><b>1,5s</b> nhìn trước</span></div></div><div class="risk-row"><span>Điểm nguy hiểm đường chọn</span><strong id="muc-nguy-hiem">—</strong></div><div class="risk-track"><div id="thanh-nguy-hiem"></div></div><div class="ai-small-stats"><span>Đang theo dõi <b id="dan-theo-doi">0 đạn</b></span><span>Mục tiêu <b id="muc-tieu">—</b></span></div></section>
+
+          <section class="panel roster-panel"><div class="panel-heading"><h2>ĐỘI HÌNH</h2><span class="tiny-label">HP / HẠ</span></div><div id="danh-sach-xe" class="roster-list" aria-label="Máu và số hạ của từng xe"></div></section>
+          <section class="panel log-panel"><div class="panel-heading"><h2>NHẬT KÝ TRẬN ĐẤU</h2><span class="log-pulse"></span></div><ol id="nhat-ky" class="event-list" aria-live="polite" aria-relevant="additions"><li class="empty-event">Các diễn biến sẽ xuất hiện tại đây.</li></ol></section>
+        </aside>
+      </div>
+
+      <details class="explanation" id="giai-thich"><summary><span><svg><use href="#i-brain"/></svg>AI của bạn nghĩ như thế nào?</span><span class="summary-end">XEM THUẬT TOÁN <span>+</span></span></summary><div class="explanation-body"><p>Mỗi 0,1 giây, xe của bạn thử nhiều cách tiến, lùi và xoay. AI dự đoán chuyển động trong 1,5 giây, chấm nguy cơ trúng đạn, khoảng trống, vùng an toàn và cơ hội bắn. Xe thực hiện phương án có điểm cao nhất rồi tính lại khi có thông tin mới.</p><p><strong>Cấp bot 1–10:</strong> cấp cao hơn phản ứng nhanh, ngắm đón đầu chính xác hơn và xét nhiều đường né đạn, tường che cùng cơ hội tấn công hơn. Cấp 10 nhìn trước 1,8 giây và thử 15 phương án. Mỗi trận vẫn ngẫu nhiên; cấp bot không thay AI của xe bạn.</p><div class="thought-flow"><span><b>01</b>Theo dõi đạn</span><span><b>02</b>Dự đoán quỹ đạo</span><span><b>03</b>Thử 15 hành động</span><span><b>04</b>Chấm điểm</span><span><b>05</b>Di chuyển & đón bắn</span></div><div class="explanation-notes"><p><strong>Đọc lớp hiển thị:</strong> đường xanh liền là phương án chọn; đường xanh mờ là các phương án thử; đường cam đứt là quỹ đạo đạn; tâm ngắm xanh là vị trí dự đoán của đối thủ.</p><p><strong>Luật đấu:</strong> nòng súng quay độc lập; đạn mất khi chạm tường; mỗi phát trúng mất 1 HP. Sau 45 giây, vùng an toàn thu hẹp rồi dừng ở 360 × 360 để xe tiếp tục di chuyển và đấu súng; xe ở ngoài bo vẫn mất HP. Tất cả bot đều có thể bắn lẫn nhau.</p><p><strong>Thay bộ não:</strong> sửa <code>ai.js</code> hoặc đăng ký hàm qua <code>DauTruong.dangKyAI(hamDieuKhien)</code>. Xem ví dụ và cấu trúc dữ liệu trong <a href="HUONG-DAN.md" target="_blank">hướng dẫn dự án ↗</a>. Không có thao tác gửi dữ liệu ra ngoài.</p></div></div></details>
+      <footer class="page-footer"><span><i></i>HTML / CSS / JAVASCRIPT THUẦN</span><span><kbd>SPACE</kbd> Bắt đầu / Tạm dừng <b>·</b> <kbd>R</kbd> Đặt lại</span><span>Được thiết kế để thử nghiệm.</span></footer>
+      <div class="sr-only" id="thong-bao-doc" role="status" aria-live="polite"></div>
+    </main>
+  </div>
+</body>
+</html>
