@@ -11,6 +11,7 @@
   <script defer src="vat-ly.js"></script>
   <script defer src="ai.js"></script>
   <script defer src="nhat-ky.js"></script>
+  <script defer src="tu-luu-log.js"></script>
   <script defer src="game.js"></script>
 </head>
 <body>
@@ -42,7 +43,7 @@
     </header>
     <main id="dau-truong">
       <section class="page-heading">
-        <div><div class="eyebrow">MÔ PHỎNG CHIẾN THUẬT / 01</div><h1>Đấu trường sinh tồn<span>.</span></h1><p>Một chiến trường. Nhiều bộ não. Chỉ một xe tăng sống sót.</p></div>
+        <div><div class="eyebrow">MÔ PHỎNG CHIẾN THUẬT / 01</div><h1>Đấu trường sinh tồn<span>.</span></h1><p>Thắng hoặc bị loại: dừng trận. Sau 5 phút chưa phân thắng bại: hòa.</p></div>
         <span class="mode-tag"><svg><use href="#i-brain"/></svg> AI tự hành <span>×</span> Đấu tự do</span>
       </section>
 
@@ -89,7 +90,7 @@
           </div><div class="player-summary"><div class="player-avatar"><svg><use href="#i-tank"/></svg></div><div><strong><b id="ten-xe-hien-thi">Tiên Phong</b> <span>BẠN</span></strong><p id="trang-thai-xe">Đang chờ xuất phát</p></div><div class="hp-text" id="mau-xe">3<small>/3 HP</small></div></div><div class="hp-track"><div id="thanh-mau"></div></div><div class="ai-decision"><span class="decision-kicker">QUYẾT ĐỊNH HIỆN TẠI</span><strong id="quyet-dinh">Quan sát chiến trường</strong><div class="decision-stats"><span><b id="so-ung-vien">15</b> phương án</span><i></i><span><b>1,5s</b> nhìn trước</span></div></div><div class="risk-row"><span>Điểm nguy hiểm đường chọn</span><strong id="muc-nguy-hiem">—</strong></div><div class="risk-track"><div id="thanh-nguy-hiem"></div></div><div class="ai-small-stats"><span>Đang theo dõi <b id="dan-theo-doi">0 đạn</b></span><span>Mục tiêu <b id="muc-tieu">—</b></span></div></section>
 
           <section class="panel roster-panel"><div class="panel-heading"><h2>ĐỘI HÌNH</h2><span class="tiny-label">HP / HẠ</span></div><div id="danh-sach-xe" class="roster-list" aria-label="Máu và số hạ của từng xe"></div></section>
-          <section class="panel log-panel"><div class="panel-heading"><h2>NHẬT KÝ TRẬN ĐẤU</h2><span class="log-pulse"></span></div><div class="log-tools"><button class="button secondary" id="nut-xem-log">Phân tích trận</button><button class="button secondary" id="nut-luu-log">Lưu log</button><label class="button secondary">Đọc log<input type="file" id="tep-log" accept=".json,application/json" class="sr-only"></label></div><p id="trang-thai-log" role="status"></p><pre id="phan-tich-log" hidden></pre><ol id="nhat-ky" class="event-list" aria-live="polite" aria-relevant="additions"><li class="empty-event">Các diễn biến sẽ xuất hiện tại đây.</li></ol></section>
+          <section class="panel log-panel"><div class="panel-heading"><h2>NHẬT KÝ TRẬN ĐẤU</h2><span class="log-pulse"></span></div><p id="tu-luu-log" role="status" style="font-size:10px;overflow-wrap:anywhere;margin:10px 12px">Đang kiểm tra tự lưu log…</p><div class="log-tools"><button class="button secondary" id="nut-xem-log">Phân tích trận</button><button class="button secondary" id="nut-luu-log">Lưu log</button><label class="button secondary">Đọc log<input type="file" id="tep-log" accept=".json,application/json" class="sr-only"></label></div><p id="trang-thai-log" role="status"></p><pre id="phan-tich-log" hidden></pre><ol id="nhat-ky" class="event-list" aria-live="polite" aria-relevant="additions"><li class="empty-event">Các diễn biến sẽ xuất hiện tại đây.</li></ol></section>
         </aside>
       </div>
 

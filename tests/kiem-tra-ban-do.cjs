@@ -93,6 +93,17 @@ kiemTra('300 hạt giống có bố trí, kích thước và số vật cản đ
     'Kích thước chướng ngại cần thực sự ngẫu nhiên');
 });
 
+kiemTra('Khu giữa có thể trống, có cover lệch tâm; không luôn che tâm sân', () => {
+  const trongBo = tran => tran.tuong.filter(t => t.x < 660 && t.x + t.rong > 300 && t.y < 660 && t.y + t.cao > 300);
+  const trong = cacTran.filter(t => trongBo(t).length === 0);
+  const coCover = cacTran.filter(t => trongBo(t).length > 0);
+  assert(trong.length > 60 && coCover.length > 60, 'Phải có nhiều trận cho cả hai kiểu bố trí');
+  assert(cacTran.some(t => t.tuong.every(v => !(v.x <= 480 && v.x + v.rong >= 480 && v.y <= 480 && v.y + v.cao >= 480))));
+  const cacCover = coCover.flatMap(trongBo);
+  assert(new Set(cacCover.map(v => `${v.x},${v.y}`)).size > 60);
+  assert(cacCover.some(v => Math.abs(v.x + v.rong / 2 - 480) > 25 || Math.abs(v.y + v.cao / 2 - 480) > 25));
+});
+
 kiemTra('300 bản đồ: tường hợp lệ, cách biên, không chồng lên nhau, đủ lối cho thân xe', () => {
   for (const tran of cacTran) {
     const nhan = `Hạt ${tran.hatGiong}`;

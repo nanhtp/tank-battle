@@ -93,8 +93,9 @@ function kiemTraHuuHan(tran) {
   }
   if (tran.ketThuc) {
     const conSong = tran.xe.filter(xe => xe.conSong);
-    assert(conSong.length <= 1);
-    assert.equal(tran.nguoiThang, conSong[0] || null);
+    assert(['thang', 'thua', 'hoa'].includes(tran.ketQua));
+    if (tran.ketQua === 'thang') assert.equal(tran.nguoiThang, conSong[0]);
+    if (tran.ketQua === 'hoa') assert.equal(tran.thoiGian, 300);
   }
 }
 
@@ -330,14 +331,15 @@ kiemTra('Bo dừng chính xác ở 360 × 360; hàm dự đoán dùng cùng gi�
   kiemTraHuuHan(tran);
 });
 
-kiemTra('Xe trong bo cuối đứng yên thêm 5 phút vẫn sống; không có kết thúc hoặc sát thương toàn sân', () => {
+kiemTra('Xe trong bo cuối sống đủ 5 phút thì hòa, không bị sát thương toàn sân', () => {
   const tran = tranTrong();
   Object.assign(tran.xe[0], { x: 360, y: 380 });
   Object.assign(tran.xe[1], { x: 600, y: 580 });
   tran.thoiGian = 170;
   for (let i = 0; i < 300 * 60; i++) D.buocMoPhong(tran, buoc, dungYen);
-  assert.equal(tran.ketThuc, false);
-  assert(Math.abs(tran.thoiGian - 470) < 1e-6);
+  assert.equal(tran.ketThuc, true);
+  assert.equal(tran.thoiGian, 300);
+  assert.equal(tran.ketQua, 'hoa');
   assert.equal(tran.vungAnToan, H.gioiHanThuVung);
   assert(tran.xe.every(xe => xe.soBan === 0 && xe.hp === 3 && xe.conSong));
   assert.equal(tran.nguoiThang, null);
@@ -346,7 +348,7 @@ kiemTra('Xe trong bo cuối đứng yên thêm 5 phút vẫn sống; không có 
 
 kiemTra('Ngoài bo cuối vẫn mất HP, xe nằm trong bo không bị ảnh hưởng', () => {
   const tran = tranTrong();
-  tran.thoiGian = 500;
+  tran.thoiGian = 200;
   Object.assign(tran.xe[0], { x: H.gioiHanThuVung - 1, y: 480 });
   Object.assign(tran.xe[1], { x: 600, y: 580 });
   D.buocMoPhong(tran, buoc, dungYen);
@@ -406,7 +408,7 @@ kiemTra('Bản đồ thật có khoảng trống liên thông giữa 4 phía và
 
 kiemTra('Xe chạy hơn 90 px và bắn trúng đối thủ trong bo cuối trên bản đồ thật', () => {
   const tran = D.taoTranDau({ soBot: 1, hp: 3, hatGiong: 42 });
-  tran.thoiGian = 500;
+  tran.thoiGian = 200;
   Object.assign(tran.xe[0], { x: 360, y: 380, goc: 0, gocNong: 0, vx: 0, vy: 0 });
   Object.assign(tran.xe[1], { x: 600, y: 380, goc: Math.PI, gocNong: Math.PI, vx: 0, vy: 0 });
   for (let i = 0; i < 45; i++) {
@@ -428,7 +430,7 @@ kiemTra('Xe chạy hơn 90 px và bắn trúng đối thủ trong bo cuối trê
   kiemTraHuuHan(tran);
 });
 
-kiemTra('Cùng bị loại ngoài vùng an toàn dẫn tới hòa', () => {
+kiemTra('Cùng bị loại ngoài vùng an toàn thì người chơi thua', () => {
   const tran = tranTrong(1);
   Object.assign(tran.xe[0], { x: 16, y: 100, hp: 0.001 });
   Object.assign(tran.xe[1], { x: 944, y: 100, hp: 0.001 });

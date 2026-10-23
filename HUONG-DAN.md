@@ -1,6 +1,6 @@
 # Đấu trường xe tăng AI
 
-Game mô phỏng đấu sinh tồn bằng HTML, CSS và JavaScript thuần. Xe có vòng tròn nét đứt là xe của bạn; chương trình tự điều khiển cả việc di chuyển, xoay nòng và bắn. Mục tiêu là trở thành xe cuối cùng còn sống.
+Game mô phỏng đấu sinh tồn bằng HTML, CSS và JavaScript thuần. Xe có vòng tròn nét đứt là xe của bạn; chương trình tự điều khiển cả việc di chuyển, xoay nòng và bắn. Mục tiêu là trở thành xe cuối cùng còn sống. Trận dừng ngay khi xe của bạn thắng hoặc bị loại; nếu bạn vẫn sống và còn đối thủ sau 5 phút thì kết quả là hòa.
 
 ## Mở và chơi
 
@@ -40,7 +40,7 @@ Bảng trạng thái cho biết số xe còn sống, thời gian, tình trạng 
 - Chướng ngại vật được tạo ngẫu nhiên khi tạo trận và giữ nguyên trong suốt trận đấu. Bộ tạo bản đồ chừa khoảng trống quanh vị trí xuất phát, các lối di chuyển nối thông và sân đấu trong bo cuối **360 × 360**. Các lối trống luôn đủ cho tiết diện xe đi qua.
 - Nòng súng xoay độc lập với thân xe. Xe có thể vừa chạy, vừa ngắm theo hướng khác.
 - Đạn bay thẳng, biến mất khi chạm tường, chướng ngại vật hoặc một xe. Đạn không nảy lại.
-- Sau **45 giây**, vùng an toàn bắt đầu thu hẹp và dừng hẳn ở **360 × 360**, đủ lối di chuyển và đấu súng quanh vật cản giữa sân. Bảng trạng thái sẽ báo **Bo cuối · Đã dừng thu**. Xe ở ngoài vùng an toàn vẫn mất HP dần, kể cả trong chế độ 1 hit. Xe ở trong bo cuối tiếp tục giao chiến bình thường, không bị ép vào một điểm; trận có thể kéo dài khi các AI phòng thủ tốt.
+- Sau **45 giây**, vùng an toàn bắt đầu thu hẹp và dừng hẳn ở **360 × 360**, đủ lối di chuyển và đấu súng dù khu giữa trống hoặc có vật cản nhỏ. Bảng trạng thái sẽ báo **Bo cuối · Đã dừng thu**. Xe ở ngoài vùng an toàn vẫn mất HP dần, kể cả trong chế độ 1 hit. Xe ở trong bo cuối tiếp tục giao chiến bình thường, không bị ép vào một điểm; trận có thể kéo dài khi các AI phòng thủ tốt.
 - Khi chỉ còn một xe, xe đó thắng. Nếu không còn xe nào, trận hòa. Nếu xe bạn bị loại sớm, bạn vẫn có thể xem các bot hoàn thành trận.
 
 ## AI của xe bạn hoạt động thế nào?
@@ -157,7 +157,7 @@ Không cần cài thêm gói thư viện. Bài thứ nhất kiểm tra vật lý
 Trong bảng **Nhật ký trận đấu**:
 
 - **Phân tích trận**: đọc kết quả và các lần xe bạn nhận sát thương, người bắn, vị trí, lệnh di chuyển và đánh giá nguy hiểm trước va chạm. Xem được khi đang đấu, tạm dừng, bị loại hoặc kết thúc.
-- **Lưu log**: tải tệp JSON chứa báo cáo tiếng Việt và dữ liệu chi tiết tại thời điểm bấm. Lưu trước khi Đặt lại, Đấu lại hoặc đóng trang; game không tự lưu ra ổ đĩa. Tệp lưu giữa trận là dữ liệu một phần.
+- **Lưu log**: tải tệp JSON chứa báo cáo tiếng Việt và dữ liệu chi tiết tại thời điểm bấm. Lưu trước khi Đặt lại, Đấu lại hoặc đóng trang; khi mở index.html trực tiếp, game không tự lưu ra ổ đĩa. Chế độ khởi chạy tự lưu được hướng dẫn bên dưới. Tệp lưu giữa trận là dữ liệu một phần.
 - **Đọc log**: chọn tệp JSON đã lưu (tối đa 50 MB), game dựng lại báo cáo mà không thay trận đang chơi. Có thể đọc trường `baoCao` bằng trình soạn thảo văn bản hoặc gửi cả tệp cho AI phân tích tiếp.
 
 Log giữ toàn bộ sự kiện, ảnh trạng thái mỗi 0,25 giây, vị trí/vận tốc xe và đạn, lệnh AI, điểm ứng viên, đường được chọn, mục tiêu, điểm ngắm và khoảng dự đoán. Mỗi lần trúng đạn có bản ghi riêng trước khi trừ HP; sát thương bo liên tiếp được gộp theo giây. Dữ liệu không gửi đi đâu. Trận càng dài, tệp càng lớn.
@@ -167,3 +167,35 @@ Báo cáo nêu nguyên nhân bị loại trực tiếp (đạn hoặc bo) dựa 
 Để so sánh chiến thuật, giữ log và mã nguồn AI tương ứng, thử thay một yếu tố rồi đấu nhiều trận cùng cấu hình. Log là dữ liệu phân tích lấy mẫu, chưa có chức năng phát lại hoạt ảnh chính xác từng bước. Mã trận không đủ để tái tạo một AI tùy chỉnh.
 
 Mô-đun `nhat-ky.js` xử lý ghi dữ liệu và tạo báo cáo. Chạy kiểm tra bằng `node tests/kiem-tra-nhat-ky.cjs`.
+
+
+## Ba điều kiện kết thúc trận
+
+1. **Thắng:** xe của bạn còn sống và toàn bộ đối thủ đã bị loại.
+2. **Thua:** xe của bạn bị loại, kể cả khi các bot khác vẫn còn sống. Nếu tất cả xe bị loại trong cùng bước mô phỏng, bạn vẫn nhận kết quả thua.
+3. **Hòa:** sau đúng **300 giây thời gian mô phỏng**, bạn và ít nhất một đối thủ còn sống. Thời gian tạm dừng không được tính; tốc độ xem 0,5× / 1× / 2× vẫn dùng cùng đồng hồ trận.
+
+Nếu thắng hoặc thua trong bước chạm mốc 300 giây, kết quả thắng/thua được ưu tiên hơn hòa. Sau khi kết thúc, xe, đạn và đồng hồ ngừng cập nhật; bạn vẫn có thể xem phân tích, lưu log hoặc Đấu lại. Log ghi `ketQua` (`thang`, `thua`, `hoa`) và `lyDoKetThuc`. Tệp log cũ vẫn đọc được. Quy tắc này không thay đổi thuật toán AI.
+
+
+## Vị trí chướng ngại vật
+
+Mỗi trận mới tạo lại địa hình. Không còn bắt buộc có chướng ngại ở chính giữa sân: khoảng một nửa số trận để trống khu giữa, các trận còn lại đặt một vật cản nhỏ ở vị trí ngẫu nhiên có thể lệch tâm. Các vật cản còn lại phân bố ngẫu nhiên ở nhiều phía bản đồ. Vẫn giữ khoảng cách với điểm xuất phát, lối vòng giữa các vật cản và các hành lang di chuyển/bắn trong bo cuối. Bắn hoặc tạm dừng không đổi map.
+
+
+## Tự lưu vào D:\Projects\tank-battle\LogTank
+
+1. Máy cần có **Python 3**. Không cần cài thư viện thêm.
+2. Nhấp đúp **MO-GAME-TU-LUU-LOG.cmd** trong thư mục game. Game tự mở trên trình duyệt. Giữ cửa sổ khởi chạy trong lúc chơi.
+3. Trong Nhật ký trận đấu, kiểm tra dòng **Tự lưu khi kết thúc trận → D:\Projects\tank-battle\LogTank**.
+
+Khi thắng, thua hoặc hòa, log JSON tự được ghi vào thư mục trên; chương trình tạo thư mục nếu chưa có. Nếu Đặt lại khi đang chơi, phần trận đã diễn ra cũng được gửi lưu. Mỗi tệp có tên riêng để không ghi đè các trận trước. Dòng **Đã tự lưu** cùng đường dẫn đầy đủ chỉ hiện sau khi ghi thành công. Nếu ghi thất bại, giao diện báo lỗi; giữ nguyên trận và dùng **Lưu log** để tải thủ công.
+
+**F5 trên tab được tệp khởi chạy mở ra** vẫn dùng chức năng tự lưu. Nếu mở `index.html` trực tiếp bằng địa chỉ `file:///`, game vẫn chơi được nhưng không thể tự ghi vào đường dẫn cố định do giới hạn trình duyệt. Việc đóng tab ngay khi đang lưu có thể làm gián đoạn yêu cầu; chờ dòng **Đã tự lưu** trước khi đóng. Chức năng này không tự lưu khi tắt máy hoặc đóng tab giữa trận.
+
+Chương trình chạy trên máy bạn, chỉ lắng nghe địa chỉ `127.0.0.1`, không gửi log ra Internet. Đóng cửa sổ khởi chạy hoặc nhấn Ctrl+C để dừng. Ổ D: phải tồn tại và tài khoản của bạn phải có quyền ghi.
+
+
+### Lỗi trình khởi chạy trỏ tới Python đã bị xóa
+
+Nếu gặp `Unable to create process ... pythoncore-3.14-64`, thay tệp `MO-GAME-TU-LUU-LOG.cmd` bằng bản mới. Tệp mới thử chạy trực tiếp các bản Python đã cài (trong PATH và các thư mục cài đặt thông dụng), chỉ dùng một bản sau khi kiểm tra chạy thành công. Nếu cần dùng `py`, chương trình thử từng phiên bản thay vì chỉ dùng mặc định `py -3`. Không cần gỡ bản Python đang dùng được. Có thể chạy `MO-GAME-TU-LUU-LOG.cmd --kiem-tra` để xem Python được chọn mà chưa mở game.

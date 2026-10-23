@@ -13,6 +13,7 @@
     banKinhDan: 3.5,
     thoiGianNap: 0.9,
     tuoiThoDan: 4,
+    thoiGianTranToiDa: 300,
     chuKyAI: 0.1,
     batDauThuVung: 45,
     tocDoThuVung: 4.2,
@@ -178,19 +179,22 @@
     const laySo = function (nho, lon) {
       return nho + Math.floor(D.ngauNhien(tran) * (lon - nho + 1));
     };
-    const giuaSan = H.kichThuoc / 2;
-    const rongGiua = laySo(56, 88);
-    const caoGiua = laySo(56, 88);
-    const cacVatCan = [{
-      x: giuaSan + laySo(-16, 16) - rongGiua / 2,
-      y: giuaSan + laySo(-16, 16) - caoGiua / 2,
-      rong: rongGiua, cao: caoGiua
-    }];
+    const cacVatCan = [];
+    // Một nửa số trận để trống khu giữa; các trận còn lại có cover nhỏ
+    // đặt lệch ngẫu nhiên, không bắt buộc che tâm (480, 480).
+    // Giữ các hành lang bắn và di chuyển quanh bo cuối thông thoáng.
+    if (D.ngauNhien(tran) < 0.5) {
+      const rong = laySo(56, 88);
+      const cao = laySo(56, 88);
+      cacVatCan.push({
+        x: laySo(405, 555 - rong), y: laySo(405, 555 - cao), rong, cao
+      });
+    }
     const soVatCanMuonCo = laySo(7, 12);
     const cachBien = 64;
     const cachHaiVat = 76; // Rộng hơn hai đường kính xe, không tạo khe kẹt xe.
     const cachXuatPhat = H.banKinhXe + 36;
-    // Chừa toàn bộ bo cuối và thêm 40 px mỗi phía. Trong bo chỉ có cover nhỏ.
+    // Chừa toàn bộ bo cuối và thêm 40 px mỗi phía. Trong bo có thể trống hoặc có một cover nhỏ.
     const ngoaiBoTrai = H.gioiHanThuVung - 40;
     const ngoaiBoPhai = H.kichThuoc - ngoaiBoTrai;
     let soLanThu = 0;
@@ -218,7 +222,7 @@
       cacVatCan.push(vatCan);
     }
     // Các tường cách nhau 76 px và cách biên 64 px nên luôn có lối vòng qua.
-    // Vật cản giữa chỉ chiếm tối đa 88 × 88, giữ lối di chuyển và bắn ở bo cuối.
+    // Cover tùy chọn chỉ chiếm tối đa 88 × 88, giữ lối di chuyển và bắn ở bo cuối.
     return cacVatCan;
   };
 
@@ -242,7 +246,7 @@
     const tran = {
       xe: [], dan: [], tuong: [],
       thoiGian: 0, vong: 1, capBot: capBot, suKien: [], hieuUng: [], ketThuc: false,
-      nguoiThang: null, vungAnToan: 0, hatGiong: hatGiong,
+      ketQua: null, lyDoKetThuc: null, nguoiThang: null, vungAnToan: 0, hatGiong: hatGiong,
       _trangThaiNgauNhien: hatGiong, _maDan: 0, _maSuKien: 0,
       _tichLuyAI: H.chuKyAI, _daBaoThuVung: false, _daBaoDungThuVung: false
     };
@@ -388,7 +392,8 @@
 
   D.buocMoPhong = function (tran, dt, boDieuKhien) {
     if (tran.ketThuc || !(dt > 0) || !Number.isFinite(dt)) return;
-    tran.thoiGian += dt;
+    dt = Math.min(dt, Math.max(0, H.thoiGianTranToiDa - tran.thoiGian));
+    tran.thoiGian = Math.min(H.thoiGianTranToiDa, tran.thoiGian + dt);
     tran._tichLuyAI += dt;
     const capNhatAI = tran._tichLuyAI + SAI_SO >= H.chuKyAI;
     if (capNhatAI) {
@@ -485,11 +490,27 @@
     });
     if (D.ghiDienBien) D.ghiDienBien(tran);
     const xeSong = tran.xe.filter(function (xe) { return xe.conSong; });
-    if (xeSong.length <= 1) {
+    const cuaBan = tran.xe.find(xe => xe.laNguoiChoi);
+    // Ưu tiên kết quả thắng/thua trong bước cuối trước khi xét hết 5 phút.
+    if (cuaBan && !cuaBan.conSong) {
+      tran.ketQua = 'thua';
+      tran.lyDoKetThuc = 'nguoi-choi-bi-loai';
+      tran.nguoiThang = xeSong.length === 1 ? xeSong[0] : null;
+    } else if (cuaBan && xeSong.length === 1) {
+      tran.ketQua = 'thang';
+      tran.lyDoKetThuc = 'nguoi-choi-song-sot-cuoi';
+      tran.nguoiThang = cuaBan;
+    } else if (tran.thoiGian >= H.thoiGianTranToiDa - SAI_SO) {
+      tran.thoiGian = H.thoiGianTranToiDa;
+      tran.ketQua = 'hoa';
+      tran.lyDoKetThuc = 'het-5-phut';
+    }
+    if (tran.ketQua) {
       tran.ketThuc = true;
-      tran.nguoiThang = xeSong[0] || null;
-      themSuKien(tran, tran.nguoiThang ? tran.nguoiThang.ten + ' chiến thắng!' :
-        'Hòa: không còn tank sống sót.', 'ket-thuc');
+      themSuKien(tran, tran.ketQua === 'thang' ? cuaBan.ten + ' chiến thắng!' :
+        tran.ketQua === 'thua' ? cuaBan.ten + ' đã thua. Trận dừng vì xe của bạn bị loại.' :
+        'Hòa: hết 5 phút, xe của bạn và đối thủ vẫn còn sống.', 'ket-thuc');
+      if (D.ghiDienBien) D.ghiDienBien(tran, true);
     }
   };
 })(typeof window !== 'undefined' ? window : globalThis);

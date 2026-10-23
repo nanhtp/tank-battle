@@ -125,6 +125,7 @@
   }
 
   function datLai() {
+    if (tran) D.tuDongLuuLog?.(tran);
     // Không truyền lại mã cũ: mở game, Đặt lại và Đấu lại đều tạo lượt ngẫu nhiên mới.
     tran = D.taoTranDau({ soBot: Number(lay('so-bot').value), hp: Number(lay('che-do').value), capBot: Number(lay('cap-bot').value),
       tenNguoiChoi: lay('ten-nguoi-choi').value, mauNguoiChoi: lay('mau-nguoi-choi').value });
@@ -193,10 +194,10 @@
 
   function ketThucTran() {
     trangThai = 'ket-thuc';
+    D.tuDongLuuLog?.(tran);
     tichLuy = 0;
-    const thang = tran.nguoiThang;
     const cuaBan = tran.xe.find(xe => xe.laNguoiChoi);
-    lay('tieu-de-ket-qua').textContent = thang ? `${thang.ten} chiến thắng${thang.laNguoiChoi ? '!' : ''}` : 'Không còn xe sống sót';
+    lay('tieu-de-ket-qua').textContent = tran.ketQua === 'hoa' ? 'Hòa · Hết 5 phút' : tran.ketQua === 'thua' ? `${cuaBan.ten} đã thua` : `${cuaBan.ten} chiến thắng!`;
     lay('mo-ta-ket-qua').textContent = `Sau ${dinhDangGio(tran.thoiGian)}, xe của bạn hạ ${cuaBan.soHa} đối thủ, bắn ${cuaBan.soBan} phát và trúng ${cuaBan.soTrung} phát.`;
     lay('ket-qua').hidden = false;
     lay('thong-bao-doc').textContent = lay('tieu-de-ket-qua').textContent;
@@ -224,7 +225,7 @@
     lay('mau-xe').replaceChildren(document.createTextNode(Number.isInteger(hp) ? hp : hp.toFixed(1)));
     const hpTong = document.createElement('small'); hpTong.textContent = `/${cuaBan.hpToiDa} HP`; lay('mau-xe').append(hpTong);
     lay('thanh-mau').style.width = `${hp / cuaBan.hpToiDa * 100}%`;
-    lay('trang-thai-xe').textContent = !cuaBan.conSong ? 'Đã bị loại · tiếp tục quan sát' : trangThai === 'san-sang' ? 'Đang chờ xuất phát' : `${cuaBan.soHa} hạ · ${cuaBan.soTrung}/${cuaBan.soBan} phát trúng`;
+    lay('trang-thai-xe').textContent = !cuaBan.conSong ? 'Đã bị loại · trận đã dừng' : trangThai === 'san-sang' ? 'Đang chờ xuất phát' : `${cuaBan.soHa} hạ · ${cuaBan.soTrung}/${cuaBan.soBan} phát trúng`;
     const nguyHiem = cuaBan.conSong && phanTich ? Math.max(0, Math.min(1, phanTich.nguyHiem)) : 0;
     lay('quyet-dinh').textContent = !cuaBan.conSong ? 'Đã bị loại khỏi trận đấu' : phanTich ? phanTich.lyDo : 'Quan sát chiến trường';
     lay('so-ung-vien').textContent = phanTich ? phanTich.ungVien.length : 15;

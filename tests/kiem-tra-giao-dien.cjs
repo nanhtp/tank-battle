@@ -10,7 +10,7 @@ const { performance } = require('node:perf_hooks');
 const thuMuc = fs.existsSync(path.join(__dirname, '../vat-ly.js'))
   ? path.resolve(__dirname, '..') : path.resolve(__dirname, '../outputs/tank-battle');
 const html = fs.readFileSync(path.join(thuMuc, 'index.html'), 'utf8');
-const maNguon = Object.fromEntries(['vat-ly.js', 'ai.js', 'nhat-ky.js', 'game.js'].map(tep =>
+const maNguon = Object.fromEntries(['vat-ly.js', 'ai.js', 'nhat-ky.js', 'tu-luu-log.js', 'game.js'].map(tep =>
   [tep, fs.readFileSync(path.join(thuMuc, tep), 'utf8')]));
 let soDat = 0;
 let soLoi = 0;
@@ -261,6 +261,7 @@ function taoPhien(tuyChon = {}) {
   };
   D.buocMoPhong = (tran, dt, dieuKhien) => { cacBuoc.push(dt); return buocGoc(tran, dt, dieuKhien); };
   vm.runInContext(maNguon['nhat-ky.js'], cuaSo, { filename: 'nhat-ky.js' });
+  vm.runInContext(maNguon['tu-luu-log.js'], cuaSo, { filename: 'tu-luu-log.js' });
   vm.runInContext(maNguon['game.js'], cuaSo, { filename: 'game.js' });
   const lay = id => { const nut = cacId.get(id); assert(nut, `Thiếu id ${id}`); return nut; };
   function khung(soKhung, ms = 1000 / 60) {
@@ -394,7 +395,7 @@ kiemTra('HTML không trùng id, mọi tài nguyên và liên kết nội bộ t�
       assert(fs.existsSync(path.join(thuMuc, diaChi)), `Thiếu tài nguyên: ${diaChi}`);
     }
   }
-  assert.deepEqual(taiLieu.querySelectorAll('script').map(nut => nut.getAttribute('src')), ['vat-ly.js', 'ai.js', 'nhat-ky.js', 'game.js']);
+  assert.deepEqual(taiLieu.querySelectorAll('script').map(nut => nut.getAttribute('src')), ['vat-ly.js', 'ai.js', 'nhat-ky.js', 'tu-luu-log.js', 'game.js']);
 });
 
 kiemTra('Khởi tạo thực thi đầy đủ: 6 xe, sẵn sàng, có vẽ Canvas', () => {
@@ -685,7 +686,7 @@ kiemTra('Nút Trận mới sau kết quả cũng bốc hạt giống mới', () 
   assert.equal(nhanNut(p), 'Tạm dừng');
 });
 
-kiemTra('Kết quả hòa và bot thắng đều có nội dung hợp lệ', () => {
+kiemTra('Người chơi bị loại thì báo thua kể cả khi bot khác cũng bị loại', () => {
   for (const doiThang of ['hoa', 'bot']) {
     const p = taoPhien();
     p.nhan('nut-bat-dau');
@@ -694,7 +695,62 @@ kiemTra('Kết quả hòa và bot thắng đều có nội dung hợp lệ', () 
     });
     p.khung(1);
     assert.equal(p.lay('ket-qua').hidden, false);
-    assert.equal(p.lay('tieu-de-ket-qua').textContent, doiThang === 'hoa' ? 'Không còn xe sống sót' : 'Bot 01 chiến thắng');
+    assert.equal(p.lay('tieu-de-ket-qua').textContent, 'Tiên Phong đã thua');
+  }
+});
+
+kiemTra('Dừng khi người chơi thua dù còn nhiều bot; mô phỏng đóng băng và log ghi thua', () => {
+  const p = taoPhien(); p.nhan('nut-bat-dau');
+  p.tran().xe[0].hp = 0; p.tran().xe[0].conSong = false;
+  p.khung(1);
+  assert.equal(p.tran().ketQua, 'thua');
+  assert(p.tran().xe.filter(x => x.conSong).length > 1);
+  const truoc = JSON.stringify(p.tran()); p.khung(120);
+  assert.equal(JSON.stringify(p.tran()), truoc);
+  assert.equal(p.D.xuatNhatKy(p.tran()).ketQua, 'thua');
+});
+
+kiemTra('Đúng 5 phút tính hòa, kết quả và log đồng bộ, Đấu lại xóa kết quả cũ', () => {
+  const p = taoPhien();
+  for (const [i,x] of p.tran().xe.entries()) Object.assign(x, { x: 350 + i * 40, y: 580 });
+  p.D.dangKyAI(() => ({ ga: 0, quay: 0, ban: false }));
+  p.D.AIBot = () => ({ ga: 0, quay: 0, ban: false });
+  p.tran().thoiGian = 300 - 1 / 120;
+  p.nhan('nut-bat-dau'); p.khung(1);
+  assert.equal(p.tran().thoiGian, 300); assert.equal(p.tran().ketQua, 'hoa');
+  assert.equal(p.lay('tieu-de-ket-qua').textContent, 'Hòa · Hết 5 phút');
+  const log = p.D.xuatNhatKy(p.tran());
+  assert.equal(log.lyDoKetThuc, 'het-5-phut'); assert(log.baoCao.includes('Hòa: hết 5 phút'));
+  const truoc = JSON.stringify(p.tran()); p.khung(100); assert.equal(JSON.stringify(p.tran()), truoc);
+  p.nhan('nut-choi-lai'); assert.equal(p.tran().ketQua, null); assert.equal(p.tran().thoiGian, 0);
+});
+
+kiemTra('Thắng hoặc thua đúng bước chạm 5 phút được ưu tiên hơn hòa', () => {
+  for (const thua of [true, false]) {
+    const p = taoPhien(); p.tran().thoiGian = 300 - 1 / 120;
+    for (const [i,x] of p.tran().xe.entries()) {
+      Object.assign(x, { x: 360 + i * 35, y: 580 });
+      if (thua ? i === 0 : i > 0) { x.hp = 0; x.conSong = false; }
+    }
+    p.nhan('nut-bat-dau'); p.khung(1);
+    assert.equal(p.tran().ketQua, thua ? 'thua' : 'thang');
+  }
+});
+
+kiemTra('Tự lưu được gọi cho thắng, thua, hòa và trước Đặt lại', () => {
+  for (const ketQua of ['thang', 'thua', 'hoa']) {
+    const p = taoPhien(), daGoi = [];
+    p.D.tuDongLuuLog = t => { daGoi.push({ t, ketQua: t.ketQua }); };
+    if (ketQua === 'hoa') p.tran().thoiGian = 300 - 1 / 120;
+    else for (const [i,x] of p.tran().xe.entries()) {
+      if (ketQua === 'thua' ? i === 0 : i > 0) { x.hp = 0; x.conSong = false; }
+    }
+    const tran = p.tran(); p.nhan('nut-bat-dau'); p.khung(1);
+    assert.equal(daGoi.length, 1); assert.equal(daGoi[0].t, tran);
+    assert.equal(daGoi[0].ketQua, ketQua);
+    p.khung(60); assert.equal(daGoi.length, 1);
+    p.nhan('nut-dat-lai'); assert.equal(daGoi.at(-1).t, tran);
+    assert.notEqual(p.tran(), tran);
   }
 });
 

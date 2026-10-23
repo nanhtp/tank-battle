@@ -17,9 +17,9 @@
     tran.nhatKy = { suKien: [], satThuong: [], dienBien: [], mocCuoi: -1 };
     D.ghiDienBien(tran);
   };
-  D.ghiDienBien = tran => {
+  D.ghiDienBien = (tran, batBuoc = false) => {
     const n = tran.nhatKy;
-    if (!n || tran.thoiGian - n.mocCuoi < .25) return;
+    if (!n || (!batBuoc && tran.thoiGian - n.mocCuoi < .25)) return;
     n.mocCuoi = tran.thoiGian;
     n.dienBien.push(saoChep({ thoiGian: tran.thoiGian, bo: tran.vungAnToan,
       xe: tran.xe.map(chupXe), dan: tran.dan }));
@@ -46,7 +46,7 @@
     const log = saoChep({ dinhDang: 'tank-lab-log', phienBan: 1,
       taoLuc: new Date().toISOString(), hatGiong: tran.hatGiong,
       cauHinh: { capBot: tran.capBot, hangSo: D.hangSo, tuong: tran.tuong },
-      thoiGian: tran.thoiGian, ketThuc: tran.ketThuc,
+      thoiGian: tran.thoiGian, ketThuc: tran.ketThuc, ketQua: tran.ketQua, lyDoKetThuc: tran.lyDoKetThuc,
       nguoiThang: tran.nguoiThang ? tran.nguoiThang.ten : null,
       xeCuoi: tran.xe.map(chupXe), suKien: tran.nhatKy.suKien,
       satThuong: tran.nhatKy.satThuong, dienBien: tran.nhatKy.dienBien });
@@ -68,7 +68,7 @@
     const dan = ds.filter(d => d.nguyenNhan === 'trung-dan');
     const bo = ds.filter(d => d.nguyenNhan === 'ngoai-bo').reduce((s, d) => s + d.luong, 0);
     const dong = [`PHÂN TÍCH TRẬN — ${xe.ten}`, `Mã trận: ${log.hatGiong} · Thời gian: ${Number(log.thoiGian).toFixed(1)}s`,
-      `Trạng thái: ${!xe.conSong ? 'Xe của bạn đã bị loại' : log.ketThuc ? 'Xe của bạn sống sót đến cuối trận' : 'Trận chưa kết thúc; chưa thể kết luận thắng/thua'}`,
+      `Trạng thái: ${log.ketQua === 'hoa' ? 'Hòa: hết 5 phút, xe của bạn và đối thủ vẫn còn sống' : !xe.conSong ? 'Xe của bạn đã bị loại' : log.ketThuc ? 'Xe của bạn sống sót đến cuối trận' : 'Trận chưa kết thúc; chưa thể kết luận thắng/thua'}`,
       `Bắn ${xe.soBan} · Trúng ${xe.soTrung} · Hạ ${xe.soHa}`, '',
       `Sát thương nhận: ${dan.length} lần trúng đạn; mất ${bo.toFixed(2)} HP ngoài bo.`];
     if (cuoi) dong.push(`Bị loại lúc ${cuoi.lucCuoi.toFixed(2)}s: ${cuoi.nguyenNhan === 'trung-dan' ? 'trúng đạn của ' + (cuoi.nguoiBan?.ten || 'xe không rõ') : 'mất HP ngoài vùng an toàn'}.`);
