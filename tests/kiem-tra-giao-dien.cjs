@@ -10,7 +10,7 @@ const { performance } = require('node:perf_hooks');
 const thuMuc = fs.existsSync(path.join(__dirname, '../vat-ly.js'))
   ? path.resolve(__dirname, '..') : path.resolve(__dirname, '../outputs/tank-battle');
 const html = fs.readFileSync(path.join(thuMuc, 'index.html'), 'utf8');
-const maNguon = Object.fromEntries(['vat-ly.js', 'ai.js', 'game.js'].map(tep =>
+const maNguon = Object.fromEntries(['vat-ly.js', 'ai.js', 'nhat-ky.js', 'game.js'].map(tep =>
   [tep, fs.readFileSync(path.join(thuMuc, tep), 'utf8')]));
 let soDat = 0;
 let soLoi = 0;
@@ -260,6 +260,7 @@ function taoPhien(tuyChon = {}) {
     const tran = taoTranGoc(tuyChon); cacTran.push(tran); return tran;
   };
   D.buocMoPhong = (tran, dt, dieuKhien) => { cacBuoc.push(dt); return buocGoc(tran, dt, dieuKhien); };
+  vm.runInContext(maNguon['nhat-ky.js'], cuaSo, { filename: 'nhat-ky.js' });
   vm.runInContext(maNguon['game.js'], cuaSo, { filename: 'game.js' });
   const lay = id => { const nut = cacId.get(id); assert(nut, `Thiếu id ${id}`); return nut; };
   function khung(soKhung, ms = 1000 / 60) {
@@ -282,6 +283,19 @@ function taoPhien(tuyChon = {}) {
 
 function nhanNut(phien) { return phien.lay('nut-bat-dau').querySelector('span').textContent; }
 function khoaThietLap(phien, khoa) { for (const id of ['so-bot', 'che-do', 'cap-bot', 'ten-nguoi-choi', 'mau-nguoi-choi']) assert.equal(phien.lay(id).disabled, khoa); }
+
+kiemTra('Mở phân tích trận hiện tại và Đặt lại xóa báo cáo đang xem', () => {
+  const p = taoPhien();
+  p.chon('ten-nguoi-choi', 'Bão Thép');
+  p.nhan('nut-xem-log');
+  assert.equal(p.lay('phan-tich-log').hidden, false);
+  assert(p.lay('phan-tich-log').textContent.includes('Bão Thép'));
+  assert(p.lay('phan-tich-log').textContent.includes('Trận chưa kết thúc'));
+  const tran = p.tran();
+  p.nhan('nut-dat-lai');
+  assert.equal(p.lay('phan-tich-log').hidden, true);
+  assert.notEqual(p.tran(), tran);
+});
 
 kiemTra('Tên và màu xem trước ngay, không tạo lại bản đồ hay thay AI', () => {
   const p = taoPhien();
@@ -380,7 +394,7 @@ kiemTra('HTML không trùng id, mọi tài nguyên và liên kết nội bộ t�
       assert(fs.existsSync(path.join(thuMuc, diaChi)), `Thiếu tài nguyên: ${diaChi}`);
     }
   }
-  assert.deepEqual(taiLieu.querySelectorAll('script').map(nut => nut.getAttribute('src')), ['vat-ly.js', 'ai.js', 'game.js']);
+  assert.deepEqual(taiLieu.querySelectorAll('script').map(nut => nut.getAttribute('src')), ['vat-ly.js', 'ai.js', 'nhat-ky.js', 'game.js']);
 });
 
 kiemTra('Khởi tạo thực thi đầy đủ: 6 xe, sẵn sàng, có vẽ Canvas', () => {
@@ -983,6 +997,22 @@ function giuNguyenTrangThai(p, truoc) {
       assert(canh <= 390 - 24 && canh + 96 + 60 + 24 <= 844);
       giuNguyenTrangThai(p, truoc);
     }
+  });
+
+  await kiemTraBatDongBo('Đọc lại tệp JSON và từ chối tệp sai, không đổi trận hiện tại', async () => {
+    const p = taoPhien();
+    const log = p.D.xuatNhatKy(p.tran());
+    log.xeCuoi[0].ten = 'Xe trong log cũ';
+    const tran = p.tran(), truoc = JSON.stringify(tran);
+    const o = p.lay('tep-log');
+    o.files = [{ name: 'tran-cu.json', size: 1000, text: async () => JSON.stringify(log) }];
+    o.phat('change'); await p.doiTacVu();
+    assert(p.lay('phan-tich-log').textContent.includes('Xe trong log cũ'));
+    assert.equal(JSON.stringify(tran), truoc);
+    assert.equal(p.tran(), tran);
+    o.files = [{ name: 'sai.json', size: 5, text: async () => '{}' }];
+    o.phat('change'); await p.doiTacVu();
+    assert(p.lay('trang-thai-log').textContent.includes('Không đọc được log'));
   });
 
   console.log(`\nKết quả: ${soDat} nhóm đạt, ${soLoi} nhóm lỗi.`);

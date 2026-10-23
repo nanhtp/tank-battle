@@ -1884,3 +1884,7 @@ body.dang-phong-to {
   vertical-align: bottom;
   font-weight: 600;
 }
+.log-tools { display:flex; flex-wrap:wrap; gap:6px; padding:10px 12px 0; }
+.log-tools .button { font-size:10px; padding:6px 8px; cursor:pointer; }
+#trang-thai-log { font-size:10px; color:#76816a; margin:8px 12px; }
+#phan-tich-log { white-space:pre-wrap; overflow-wrap:anywhere; max-height:420px; overflow:auto; font:11px/1.7 monospace; padding:12px; margin:8px; background:#edf1e7; border-radius:4px; }

@@ -150,3 +150,20 @@ node tests/kiem-tra-ban-do.cjs
 ```
 
 Không cần cài thêm gói thư viện. Bài thứ nhất kiểm tra vật lý, lịch quyết định AI, đường dự đoán, ngắm đón đầu, tạo trận ngẫu nhiên, các đợt đổi chiến thuật bot và các trận nhiều xe. Hạt giống cố định chỉ dùng trong bài kiểm tra để tái hiện lỗi. Bài thứ hai thực thi mã giao diện bằng các đối tượng DOM/Canvas giả lập để kiểm tra nút, thiết lập cấp độ, tốc độ, phím tắt, tạm dừng, toàn màn hình, kích thước sân theo cửa sổ và xác nhận Đặt lại/Đấu lại tạo trận mới. Bài thứ ba kiểm tra cấu hình và các hành vi chiến đấu theo cấp bot. Bài thứ tư kiểm tra bản đồ ngẫu nhiên qua nhiều hạt giống, khoảng trống xuất phát, lối đi nối thông và bo cuối. Bài kiểm tra giả lập không xác minh bố cục hoặc cách hiển thị trong trình duyệt thật.
+
+
+## Lưu và đọc log để cải thiện chiến thuật
+
+Trong bảng **Nhật ký trận đấu**:
+
+- **Phân tích trận**: đọc kết quả và các lần xe bạn nhận sát thương, người bắn, vị trí, lệnh di chuyển và đánh giá nguy hiểm trước va chạm. Xem được khi đang đấu, tạm dừng, bị loại hoặc kết thúc.
+- **Lưu log**: tải tệp JSON chứa báo cáo tiếng Việt và dữ liệu chi tiết tại thời điểm bấm. Lưu trước khi Đặt lại, Đấu lại hoặc đóng trang; game không tự lưu ra ổ đĩa. Tệp lưu giữa trận là dữ liệu một phần.
+- **Đọc log**: chọn tệp JSON đã lưu (tối đa 50 MB), game dựng lại báo cáo mà không thay trận đang chơi. Có thể đọc trường `baoCao` bằng trình soạn thảo văn bản hoặc gửi cả tệp cho AI phân tích tiếp.
+
+Log giữ toàn bộ sự kiện, ảnh trạng thái mỗi 0,25 giây, vị trí/vận tốc xe và đạn, lệnh AI, điểm ứng viên, đường được chọn, mục tiêu, điểm ngắm và khoảng dự đoán. Mỗi lần trúng đạn có bản ghi riêng trước khi trừ HP; sát thương bo liên tiếp được gộp theo giây. Dữ liệu không gửi đi đâu. Trận càng dài, tệp càng lớn.
+
+Báo cáo nêu nguyên nhân bị loại trực tiếp (đạn hoặc bo) dựa trên mô phỏng. Gợi ý tăng ưu tiên né đạn, tránh đứng yên hay vào bo sớm là suy luận cần thử lại, không chứng minh rằng đổi một trọng số chắc chắn giúp thắng. AI thay thế không cung cấp `boNhoAI.phanTich` vẫn ghi được lệnh và sát thương nhưng sẽ thiếu giải thích nội bộ.
+
+Để so sánh chiến thuật, giữ log và mã nguồn AI tương ứng, thử thay một yếu tố rồi đấu nhiều trận cùng cấu hình. Log là dữ liệu phân tích lấy mẫu, chưa có chức năng phát lại hoạt ảnh chính xác từng bước. Mã trận không đủ để tái tạo một AI tùy chỉnh.
+
+Mô-đun `nhat-ky.js` xử lý ghi dữ liệu và tạo báo cáo. Chạy kiểm tra bằng `node tests/kiem-tra-nhat-ky.cjs`.

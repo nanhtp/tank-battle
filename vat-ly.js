@@ -77,6 +77,7 @@
     tran.suKien.unshift({
       id: ++tran._maSuKien, thoiGian: tran.thoiGian, noiDung: noiDung, loai: loai
     });
+    if (tran.nhatKy) tran.nhatKy.suKien.push({ ...tran.suKien[0] });
     if (tran.suKien.length > 30) tran.suKien.length = 30;
   }
 
@@ -273,6 +274,7 @@
       });
     }
     tran.tuong = D.taoChuongNgaiVat(tran);
+    if (D.khoiTaoNhatKy) D.khoiTaoNhatKy(tran);
     themSuKien(tran, 'Đã sẵn sàng: ' + (soBot + 1) + ' xe vào đấu trường. Bot cấp ' + capBot + '.', 'bat-dau');
     return tran;
   };
@@ -325,8 +327,9 @@
     return t >= 0 && t <= 1 ? t : null;
   }
 
-  function nhanSatThuong(tran, xe, soMau, nguoiBan) {
+  function nhanSatThuong(tran, xe, soMau, nguoiBan, dan) {
     if (!xe.conSong) return;
+    if (D.ghiSatThuong) D.ghiSatThuong(tran, xe, soMau, nguoiBan, dan);
     xe.hp = Math.max(0, xe.hp - soMau);
     if (xe.hp > SAI_SO) return;
     xe.hp = 0;
@@ -360,6 +363,7 @@
   }
 
   function tachXeChamNhau(tran) {
+    if (D.ghiDienBien) D.ghiDienBien(tran);
     const xeSong = tran.xe.filter(function (xe) { return xe.conSong; });
     const duongKinh = H.banKinhXe * 2;
     // Hai lượt đủ giải phần lớn các tiếp xúc kép tại góc tường.
@@ -445,7 +449,7 @@
         if (xeTrung) {
           const nguoiBan = tran.xe.find(function (xe) { return xe.id === dan.chuId; });
           if (nguoiBan) nguoiBan.soTrung++;
-          nhanSatThuong(tran, xeTrung, 1, nguoiBan);
+          nhanSatThuong(tran, xeTrung, 1, nguoiBan, dan);
           if (xeTrung.conSong) themSuKien(tran, xeTrung.ten + ' trúng đạn.', 'trung');
         }
       } else if (dan.tuoi < H.tuoiThoDan) {
@@ -479,6 +483,7 @@
     tran.hieuUng = tran.hieuUng.filter(function (hieuUng) {
       return hieuUng.tuoi < hieuUng.thoiLuong;
     });
+    if (D.ghiDienBien) D.ghiDienBien(tran);
     const xeSong = tran.xe.filter(function (xe) { return xe.conSong; });
     if (xeSong.length <= 1) {
       tran.ketThuc = true;

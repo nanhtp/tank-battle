@@ -132,6 +132,8 @@
     tichLuy = 0;
     maSuKienCu = -1;
     lay('ket-qua').hidden = true;
+    lay('phan-tich-log').hidden = true;
+    lay('trang-thai-log').textContent = 'Lưu log trước khi Đặt lại để giữ dữ liệu trận cũ.';
     // Cấp bot có thể đổi dù số xe không đổi; dựng lại nhãn theo trận mới.
     lay('danh-sach-xe').replaceChildren();
     lay('thong-bao-doc').textContent = 'Trận mới đã sẵn sàng.';
@@ -407,6 +409,33 @@
     veTran();
     requestAnimationFrame(khungHinh);
   }
+
+  lay('nut-xem-log').addEventListener('click', () => {
+    lay('phan-tich-log').textContent = D.phanTichNhatKy(D.xuatNhatKy(tran));
+    lay('phan-tich-log').hidden = false;
+    lay('trang-thai-log').textContent = 'Phân tích trận hiện tại tại thời điểm bấm.';
+  });
+  lay('nut-luu-log').addEventListener('click', () => {
+    const log = D.xuatNhatKy(tran);
+    const tep = new Blob([JSON.stringify(log, null, 2)], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(tep), lienKet = document.createElement('a');
+    lienKet.href = url; lienKet.download = `tank-log-${tran.hatGiong}-${Math.floor(tran.thoiGian)}s.json`;
+    document.body.append(lienKet); lienKet.click(); lienKet.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    lay('trang-thai-log').textContent = 'Đã tạo tệp log. Hãy giữ tệp trước khi Đặt lại hoặc đóng trang.';
+  });
+  lay('tep-log').addEventListener('change', async e => {
+    const tep = e.target.files?.[0]; if (!tep) return;
+    try {
+      if (tep.size > 50 * 1024 * 1024) throw new Error('Tệp quá lớn (tối đa 50 MB).');
+      const log = JSON.parse(await tep.text());
+      D.kiemTraNhatKy(log);
+      lay('phan-tich-log').textContent = D.phanTichNhatKy(log);
+      lay('phan-tich-log').hidden = false;
+      lay('trang-thai-log').textContent = `Đang đọc tệp: ${tep.name}. Trận đang chơi được giữ nguyên.`;
+    } catch (loi) { lay('trang-thai-log').textContent = 'Không đọc được log: ' + loi.message; }
+    finally { e.target.value = ''; }
+  });
 
   lay('nut-bat-dau').addEventListener('click', batDauHoacDung);
   lay('nut-dat-lai').addEventListener('click', datLai);
