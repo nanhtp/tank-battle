@@ -14,6 +14,7 @@
   let mocHinh = 0, mocBang = 0, maSuKienCu = -1;
   let hienDuDoan = true;
   let dangDoiToanManHinh = false;
+  let mocTuDauLai = null;
 
   // Nền được vẽ một lần, tránh lặp lại các chi tiết tĩnh mỗi khung hình.
   const nen = document.createElement('canvas');
@@ -125,6 +126,8 @@
   }
 
   function datLai() {
+    mocTuDauLai = null;
+    lay('dem-nguoc-dau-lai').hidden = true;
     if (tran) D.tuDongLuuLog?.(tran);
     // Không truyền lại mã cũ: mở game, Đặt lại và Đấu lại đều tạo lượt ngẫu nhiên mới.
     tran = D.taoTranDau({ soBot: Number(lay('so-bot').value), hp: Number(lay('che-do').value), capBot: Number(lay('cap-bot').value),
@@ -202,8 +205,33 @@
     lay('mo-ta-ket-qua').textContent = `Sau ${dinhDangGio(tran.thoiGian)}, xe của bạn hạ ${cuaBan.soHa} đối thủ, bắn ${cuaBan.soBan} phát và trúng ${cuaBan.soTrung} phát.`;
     lay('ket-qua').hidden = false;
     lay('thong-bao-doc').textContent = lay('tieu-de-ket-qua').textContent;
+    henTuDauLai();
     capNhatDieuKhien();
     capNhatBang();
+  }
+
+  function henTuDauLai() {
+    const nhan = lay('dem-nguoc-dau-lai');
+    if (!tran.ketThuc || !lay('tu-dau-lai').checked) {
+      mocTuDauLai = null;
+      nhan.hidden = true;
+      return;
+    }
+    if (mocTuDauLai === null) mocTuDauLai = performance.now() + 5000;
+    nhan.hidden = false;
+    const con = Math.max(0, Math.ceil((mocTuDauLai - performance.now() - 1e-6) / 1000));
+    if (con > 0) { nhan.textContent = `Tự động đấu lại sau ${con} giây…`; return; }
+    const luu = D.layTrangThaiTuLuu?.(tran);
+    if (luu === 'dang-luu' || luu === 'cho') {
+      nhan.textContent = 'Đang chờ lưu log trước khi đấu lại…'; return;
+    }
+    if (luu === 'loi') {
+      nhan.textContent = 'Chưa tự đấu lại vì lưu log thất bại. Giữ trận để lưu thủ công hoặc bấm Đấu lại.';
+      return;
+    }
+    mocTuDauLai = null;
+    datLai();
+    batDauHoacDung();
   }
 
   function capNhatBang() {
@@ -396,6 +424,11 @@
 
   // Tần số vật lý giữ nguyên ở mọi tốc độ phát; không dùng thời gian vẽ để lái xe.
   function capNhatMoPhong(moc) {
+    if (trangThai === 'ket-thuc') {
+      henTuDauLai();
+      mocHinh = moc;
+      return;
+    }
     // Dùng một đồng hồ chung cho bộ hẹn giờ và vòng vẽ để không chạy gấp đôi.
     moc = Math.max(moc, mocHinh);
     const thoiGianQua = Math.max(0, (moc - (mocHinh || moc)) / 1000);
@@ -446,6 +479,11 @@
       lay('trang-thai-log').textContent = `Đang đọc tệp: ${tep.name}. Trận đang chơi được giữ nguyên.`;
     } catch (loi) { lay('trang-thai-log').textContent = 'Không đọc được log: ' + loi.message; }
     finally { e.target.value = ''; }
+  });
+
+  lay('tu-dau-lai').addEventListener('change', () => {
+    if (tran.ketThuc && lay('tu-dau-lai').checked) D.tuDongLuuLog?.(tran);
+    henTuDauLai();
   });
 
   lay('nut-bat-dau').addEventListener('click', batDauHoacDung);

@@ -1888,3 +1888,7 @@ body.dang-phong-to {
 .log-tools .button { font-size:10px; padding:6px 8px; cursor:pointer; }
 #trang-thai-log { font-size:10px; color:#76816a; margin:8px 12px; }
 #phan-tich-log { white-space:pre-wrap; overflow-wrap:anywhere; max-height:420px; overflow:auto; font:11px/1.7 monospace; padding:12px; margin:8px; background:#edf1e7; border-radius:4px; }
+
+.auto-replay-label { display:inline-flex; align-items:center; gap:5px; color:#708060; font-size:10px; white-space:nowrap; cursor:pointer; }
+.auto-replay-label input { width:14px; height:14px; accent-color:#78964b; cursor:pointer; }
+#dem-nguoc-dau-lai { font-weight:600; color:#58763c; }

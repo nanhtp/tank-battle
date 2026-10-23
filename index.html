@@ -68,6 +68,7 @@
               <button type="button" id="nut-chay-toan-man-hinh" class="button primary chi-toan-man-hinh"><svg><use href="#i-play"/></svg><span>Bắt đầu</span></button>
               <button type="button" id="nut-dat-lai-toan-man-hinh" class="button secondary chi-toan-man-hinh" title="Đặt lại trận đấu"><svg><use href="#i-reset"/></svg><span>Đặt lại</span></button>
               <label class="switch-label"><input type="checkbox" id="hien-du-doan" checked><span class="switch"></span>Hiển thị tư duy AI</label>
+              <label class="auto-replay-label"><input type="checkbox" id="tu-dau-lai">Tự động đấu lại (5s)</label>
               <button type="button" id="nut-toan-man-hinh" class="button fullscreen-button" aria-label="Toàn màn hình" aria-pressed="false" title="Phóng to đấu trường toàn màn hình"><svg><use href="#i-expand"/></svg><span>Toàn màn hình</span></button>
             </div>
           </div>
@@ -75,7 +76,7 @@
             <canvas id="ban-do" width="960" height="960" aria-label="Đấu trường hình vuông. Xe của bạn có tên và màu do bạn chọn, được đánh dấu bằng vòng tròn nét đứt. Theo dõi kết quả trong bảng trạng thái bên cạnh.">Trình duyệt cần hỗ trợ Canvas để hiển thị trận đấu.</canvas>
             <div class="map-coordinate coordinate-top">00 — 960</div><div class="map-coordinate coordinate-bottom">TANK LAB / SIMULATION</div>
             <div class="arena-notice" id="thong-bao-san"><span class="notice-icon"><svg><use href="#i-tank"/></svg></span><div><strong>Đội hình đã sẵn sàng</strong><span>Nhấn Bắt đầu để các AI tranh tài.</span></div><kbd>SPACE</kbd></div>
-            <div class="result-overlay" id="ket-qua" hidden><div class="result-card"><div class="eyebrow">TRẬN ĐẤU KẾT THÚC</div><svg class="result-icon"><use href="#i-tank"/></svg><h2 id="tieu-de-ket-qua"></h2><p id="mo-ta-ket-qua"></p><button class="button primary" id="nut-choi-lai"><svg><use href="#i-reset"/></svg>Đấu lại</button></div></div>
+            <div class="result-overlay" id="ket-qua" hidden><div class="result-card"><div class="eyebrow">TRẬN ĐẤU KẾT THÚC</div><svg class="result-icon"><use href="#i-tank"/></svg><h2 id="tieu-de-ket-qua"></h2><p id="mo-ta-ket-qua"></p><p id="dem-nguoc-dau-lai" role="status" aria-live="polite" hidden></p><button class="button primary" id="nut-choi-lai"><svg><use href="#i-reset"/></svg>Đấu lại</button></div></div>
           </div>
           <div class="arena-footer"><div class="legend"><span><i class="legend-dot player"></i>Xe của bạn</span><span><i class="legend-dot bot"></i>Đối thủ</span><span><i class="legend-line"></i>Đường đã chọn</span><span><i class="legend-target"></i>Điểm đón bắn</span></div><span class="map-size">960 × 960</span></div>
         </section>

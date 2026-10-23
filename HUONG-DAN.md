@@ -206,3 +206,12 @@ Nếu gặp `Unable to create process ... pythoncore-3.14-64`, thay tệp `MO-GA
 Sau khi nhấn **Bắt đầu**, bạn có thể chuyển sang tab hay cửa sổ khác: game không tự tạm dừng. Bộ hẹn giờ tiếp tục mô phỏng kể cả khi trình duyệt ngừng vẽ tab nền. Bước vật lý vẫn giữ 1/60 giây; đồng hồ dùng thời gian đã trôi qua để xử lý khi nhịp hẹn giờ bị giãn. Khi trở lại, game hiển thị trạng thái đang có mà không tính thời gian hai lần.
 
 Nút **Tạm dừng** vẫn dừng trận theo yêu cầu của bạn. Thắng, thua hoặc đủ 5 phút vẫn kết thúc và gọi tự lưu log nếu chạy bằng `MO-GAME-TU-LUU-LOG.cmd`. Hãy giữ tab và chương trình khởi chạy mở. Trình duyệt đóng băng/hủy tab để tiết kiệm bộ nhớ hoặc máy vào chế độ ngủ vẫn có thể ngừng thực thi; game xử lý tiếp thời gian còn thiếu khi được chạy lại.
+
+
+## Tự động đấu lại sau 5 giây
+
+Đánh dấu **Tự động đấu lại (5s)** ở hàng điều khiển phía trên bản đồ. Mặc định tùy chọn này tắt. Sau mỗi trận thắng, thua hoặc hòa, bảng kết quả đếm ngược 5 giây thực rồi tự tạo và bắt đầu trận mới. Tốc độ mô phỏng 0,5× / 1× / 2× không đổi độ dài đếm ngược. Tên, màu xe, số bot, cấp bot, HP, tốc độ và checkbox được giữ qua các trận; bản đồ và diễn biến tạo mới.
+
+Bỏ chọn checkbox để hủy đếm ngược. Nếu bật lại khi đang xem kết quả, bắt đầu một lượt đếm ngược 5 giây mới. Nhấn Đặt lại hoặc Đấu lại bằng tay cũng hủy lịch cũ. Tính năng vẫn hoạt động khi tab chạy nền, theo nhịp xử lý mà trình duyệt cho phép.
+
+Khi chạy bằng chương trình tự lưu log, game chờ lưu thành công trước khi tự đấu lại. Nếu quá 5 giây mà vẫn đang ghi, bảng kết quả báo đang chờ. Nếu lưu thất bại, game giữ kết quả và báo lỗi để bạn lưu thủ công hoặc chủ động Đấu lại. Mở index.html trực tiếp vẫn tự đấu lại được nhưng không tự lưu vào ổ D:; muốn thu thập log nhiều trận, hãy dùng MO-GAME-TU-LUU-LOG.cmd.

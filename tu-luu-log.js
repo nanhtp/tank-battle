@@ -5,6 +5,7 @@
   const trangThai = () => document.getElementById('tu-luu-log');
   const daLuu = new WeakSet();
   const dangLuu = new WeakSet();
+  const trangThaiLuu = new WeakMap();
   const diaChi = window.location;
   const coMayChu = diaChi && diaChi.protocol === 'http:' && diaChi.hostname === '127.0.0.1';
   const sanSang = coMayChu ? fetch('/api/cau-hinh-log').then(async r => {
@@ -15,9 +16,11 @@
     return c;
   }).catch(e => { trangThai().textContent = 'Tự lưu chưa sẵn sàng: ' + e.message; return null; }) : Promise.resolve(null);
   if (!coMayChu) trangThai().textContent = 'Để tự lưu vào D:\\Projects\\tank-battle\\LogTank, mở game bằng MO-GAME-TU-LUU-LOG.cmd.';
+  D.layTrangThaiTuLuu = tran => !coMayChu ? 'thu-cong' : trangThaiLuu.get(tran) || 'cho';
   D.tuDongLuuLog = async tran => {
     if (!coMayChu || !tran || tran.thoiGian <= 0 || daLuu.has(tran) || dangLuu.has(tran)) return;
     dangLuu.add(tran);
+    trangThaiLuu.set(tran, 'dang-luu');
     try {
       // Chụp dữ liệu ngay trước khi giao diện chuyển sang trận mới.
       const noiDung = JSON.stringify(D.xuatNhatKy(tran));
@@ -30,8 +33,10 @@
       const kq = await r.json();
       if (!r.ok) throw new Error(kq.loi || 'Không lưu được log.');
       daLuu.add(tran);
+      trangThaiLuu.set(tran, 'da-luu');
       trangThai().textContent = 'Đã tự lưu: ' + kq.duongDan;
     } catch (loi) {
+      trangThaiLuu.set(tran, 'loi');
       trangThai().textContent = 'Tự lưu thất bại: ' + loi.message + ' Bạn có thể dùng nút Lưu log để tải thủ công.';
     } finally { dangLuu.delete(tran); }
   };

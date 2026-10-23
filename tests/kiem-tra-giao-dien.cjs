@@ -220,6 +220,7 @@ function taoPhien(tuyChon = {}) {
   let moc = 1000;
   let maKhung = 0;
   const hangKhung = [];
+  const cacHenGio = [];
   const cacTran = [];
   const cacTuyChon = [];
   const cacBuoc = [];
@@ -247,6 +248,7 @@ function taoPhien(tuyChon = {}) {
   Object.assign(cuaSo, { document: taiLieu, console, Math, devicePixelRatio: 1,
     crypto: { getRandomValues: mang => { mang.fill(2048); return mang; } },
     performance: { now: () => moc },
+    setInterval: ham => { cacHenGio.push(ham); return cacHenGio.length; },
     requestAnimationFrame: ham => { hangKhung.push(ham); return ++maKhung; }
   });
   cuaSo.window = cuaSo; cuaSo.globalThis = cuaSo;
@@ -274,6 +276,8 @@ function taoPhien(tuyChon = {}) {
   }
   return { cuaSo, taiLieu, lay, D, cacTran, cacTuyChon, cacBuoc, khung, toanManHinh,
     tran: () => cacTran.at(-1),
+    nhipNen: (n, ms = 1000) => { for (let i = 0; i < n; i++) { moc += ms; cacHenGio.forEach(ham => ham()); } },
+    henGioNgay: () => cacHenGio.forEach(ham => ham()),
     chon: (id, giaTri) => { const nut = lay(id); nut.value = String(giaTri); nut.phat('change'); },
     nhan: id => lay(id).click(),
     tocDo: giaTri => taiLieu.querySelectorAll('[data-toc-do]').find(nut => Number(nut.dataset.tocDo) === giaTri).click(),
@@ -754,6 +758,66 @@ kiemTra('Tự lưu được gọi cho thắng, thua, hòa và trước Đặt l�
   }
 });
 
+kiemTra('Tự đấu lại mặc định tắt; không tự tạo trận khi chưa chọn', () => {
+  const p = taoPhien(); assert.equal(p.lay('tu-dau-lai').checked, false);
+  p.nhan('nut-bat-dau'); p.tran().xe[0].conSong = false; p.tran().xe[0].hp = 0; p.khung(1);
+  const tran = p.tran(); p.nhipNen(10);
+  assert.equal(p.tran(), tran); assert.equal(p.lay('dem-nguoc-dau-lai').hidden, true);
+});
+
+kiemTra('Thắng, thua, hòa đều đếm đủ 5 giây thực ở nền rồi đấu lại, giữ thiết lập', () => {
+  for (const kq of ['thang', 'thua', 'hoa']) {
+    const p = taoPhien(); p.chon('ten-nguoi-choi', 'Xe thử'); p.chon('mau-nguoi-choi', '#112233');
+    p.chon('cap-bot', 8); p.tocDo(2);
+    p.lay('tu-dau-lai').checked = true; p.lay('tu-dau-lai').phat('change');
+    if (kq === 'hoa') p.tran().thoiGian = 300 - 1 / 120;
+    else for (const [i,x] of p.tran().xe.entries()) if (kq === 'thua' ? i === 0 : i > 0) { x.hp = 0; x.conSong = false; }
+    p.nhan('nut-bat-dau'); p.khung(1);
+    const cu = p.tran(); assert.equal(cu.ketQua, kq);
+    assert(p.lay('dem-nguoc-dau-lai').textContent.includes('5 giây'));
+    p.taiLieu.hidden = true; p.nhipNen(4);
+    assert.equal(p.tran(), cu); assert(p.lay('dem-nguoc-dau-lai').textContent.includes('1 giây'));
+    p.nhipNen(1, 999); assert.equal(p.tran(), cu);
+    p.nhipNen(1, 1); assert.notEqual(p.tran(), cu);
+    assert.notEqual(p.tran().hatGiong, cu.hatGiong); assert.equal(p.tran().thoiGian, 0);
+    assert.equal(p.tran().xe[0].ten, 'Xe thử'); assert.equal(p.tran().xe[0].mau, '#112233');
+    assert.equal(p.tran().capBot, 8); assert.equal(nhanNut(p), 'Tạm dừng');
+    assert.equal(p.lay('tu-dau-lai').checked, true);
+    p.nhipNen(1, 100); assert(Math.abs(p.tran().thoiGian - .2) < 1e-6);
+  }
+});
+
+kiemTra('Tắt checkbox hủy đếm ngược; bật lại bắt đầu đủ 5 giây mới', () => {
+  const p = taoPhien(); p.lay('tu-dau-lai').checked = true;
+  p.nhan('nut-bat-dau'); p.tran().xe[0].conSong = false; p.khung(1); p.nhipNen(3);
+  p.lay('tu-dau-lai').checked = false; p.lay('tu-dau-lai').phat('change');
+  const cu = p.tran(); p.nhipNen(8); assert.equal(p.tran(), cu);
+  p.lay('tu-dau-lai').checked = true; p.lay('tu-dau-lai').phat('change');
+  p.nhipNen(4); assert.equal(p.tran(), cu);
+  p.nhipNen(1); assert.notEqual(p.tran(), cu);
+});
+
+kiemTra('Đặt lại hoặc Đấu lại bằng tay hủy lịch cũ, không tạo thêm trận sau 5 giây', () => {
+  for (const nut of ['nut-dat-lai', 'nut-choi-lai']) {
+    const p = taoPhien(); p.lay('tu-dau-lai').checked = true;
+    p.nhan('nut-bat-dau'); p.tran().xe[0].conSong = false; p.khung(1); p.nhipNen(2);
+    p.nhan(nut); const moi = p.tran();
+    p.D.dangKyAI(() => ({ ga:0, quay:0, ban:false })); p.D.AIBot = () => ({ ga:0, quay:0, ban:false });
+    p.nhipNen(6); assert.equal(p.tran(), moi); assert.equal(p.lay('dem-nguoc-dau-lai').hidden, true);
+  }
+});
+
+kiemTra('Chờ log lưu xong trước tự đấu lại; lỗi lưu giữ nguyên kết quả để tránh mất log', () => {
+  const p = taoPhien(); let luu = 'dang-luu'; p.D.layTrangThaiTuLuu = () => luu;
+  p.lay('tu-dau-lai').checked = true;
+  p.nhan('nut-bat-dau'); p.tran().xe[0].conSong = false; p.khung(1);
+  const cu = p.tran(); p.nhipNen(6); assert.equal(p.tran(), cu);
+  assert(p.lay('dem-nguoc-dau-lai').textContent.includes('chờ lưu log'));
+  luu = 'loi'; p.nhipNen(1); assert.equal(p.tran(), cu);
+  assert(p.lay('dem-nguoc-dau-lai').textContent.includes('thất bại'));
+  luu = 'da-luu'; p.nhipNen(1); assert.notEqual(p.tran(), cu);
+});
+
 kiemTra('Space/R hoạt động và bỏ qua nhập liệu, nút, phím giữ, tổ hợp', () => {
   const p = taoPhien();
   assert(p.phim(' ', 'Space').defaultPrevented);
@@ -779,17 +843,51 @@ kiemTra('Space/R hoạt động và bỏ qua nhập liệu, nút, phím giữ, t
   assert.equal(p.tran().thoiGian, 0);
 });
 
-kiemTra('Ẩn tài liệu tự tạm dừng; hiện lại cần người dùng tiếp tục', () => {
+kiemTra('Chuyển tab vẫn chạy nền khi vòng vẽ dừng; quay lại không cộng thời gian hai lần', () => {
   const p = taoPhien();
+  p.D.dangKyAI(() => ({ ga: 0, quay: 0, ban: false }));
+  p.D.AIBot = () => ({ ga: 0, quay: 0, ban: false });
   p.nhan('nut-bat-dau'); p.khung(30);
   const gioCu = p.tran().thoiGian;
   p.taiLieu.hidden = true; p.taiLieu.phat('visibilitychange');
-  assert.equal(nhanNut(p), 'Tiếp tục');
-  p.khung(120); assert.equal(p.tran().thoiGian, gioCu);
+  assert.equal(nhanNut(p), 'Tạm dừng');
+  p.nhipNen(10);
+  assert(Math.abs(p.tran().thoiGian - gioCu - 10) < 1e-6);
+  const truoc = p.tran().thoiGian;
+  p.henGioNgay(); assert.equal(p.tran().thoiGian, truoc);
   p.taiLieu.hidden = false; p.taiLieu.phat('visibilitychange');
-  p.khung(120); assert.equal(p.tran().thoiGian, gioCu);
-  p.nhan('nut-bat-dau'); p.khung(1);
-  assert(Math.abs(p.tran().thoiGian - gioCu - 1 / 60) < 1e-6);
+  p.khung(60);
+  assert(Math.abs(p.tran().thoiGian - truoc - 1) < 1e-6);
+});
+
+kiemTra('Tạm dừng thủ công vẫn dừng khi chạy nền; đặt lại không giữ nợ thời gian', () => {
+  const p = taoPhien(); p.nhan('nut-bat-dau'); p.khung(10); p.nhan('nut-bat-dau');
+  const truoc = JSON.stringify(p.tran());
+  p.taiLieu.hidden = true; p.taiLieu.phat('visibilitychange'); p.nhipNen(5);
+  assert.equal(JSON.stringify(p.tran()), truoc);
+  p.nhan('nut-dat-lai'); p.nhipNen(5); assert.equal(p.tran().thoiGian, 0);
+  p.nhan('nut-bat-dau'); p.nhipNen(1, 100);
+  assert(Math.abs(p.tran().thoiGian - .1) < 1e-6);
+});
+
+kiemTra('Đủ 5 phút ở nền vẫn hòa và gọi tự lưu đúng một lần', () => {
+  const p = taoPhien();
+  for (const [i,x] of p.tran().xe.entries()) Object.assign(x, { x: 350 + i * 40, y: 580 });
+  p.D.dangKyAI(() => ({ ga: 0, quay: 0, ban: false }));
+  p.D.AIBot = () => ({ ga: 0, quay: 0, ban: false });
+  let daLuu = 0; p.D.tuDongLuuLog = () => { daLuu++; };
+  p.nhan('nut-bat-dau'); p.taiLieu.hidden = true; p.taiLieu.phat('visibilitychange');
+  p.nhipNen(300);
+  assert.equal(p.tran().thoiGian, 300); assert.equal(p.tran().ketQua, 'hoa');
+  assert.equal(daLuu, 1);
+  const truoc = JSON.stringify(p.tran()); p.nhipNen(10);
+  assert.equal(JSON.stringify(p.tran()), truoc); assert.equal(daLuu, 1);
+});
+
+kiemTra('Hẹn giờ nền vẫn chạy khi cửa sổ mất tập trung nhưng tab chưa bị đánh dấu ẩn', () => {
+  const p = taoPhien(); p.nhan('nut-bat-dau'); p.nhipNen(1);
+  assert(Math.abs(p.tran().thoiGian - 1) < 1e-6);
+  assert(p.cacBuoc.every(dt => dt === 1 / 60));
 });
 
 kiemTra('Đổi kích thước cập nhật Canvas theo DPR, giữ nguyên trận', () => {
