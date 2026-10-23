@@ -199,3 +199,10 @@ Chương trình chạy trên máy bạn, chỉ lắng nghe địa chỉ `127.0.0
 ### Lỗi trình khởi chạy trỏ tới Python đã bị xóa
 
 Nếu gặp `Unable to create process ... pythoncore-3.14-64`, thay tệp `MO-GAME-TU-LUU-LOG.cmd` bằng bản mới. Tệp mới thử chạy trực tiếp các bản Python đã cài (trong PATH và các thư mục cài đặt thông dụng), chỉ dùng một bản sau khi kiểm tra chạy thành công. Nếu cần dùng `py`, chương trình thử từng phiên bản thay vì chỉ dùng mặc định `py -3`. Không cần gỡ bản Python đang dùng được. Có thể chạy `MO-GAME-TU-LUU-LOG.cmd --kiem-tra` để xem Python được chọn mà chưa mở game.
+
+
+## Tiếp tục trận khi chuyển tab hoặc cửa sổ
+
+Sau khi nhấn **Bắt đầu**, bạn có thể chuyển sang tab hay cửa sổ khác: game không tự tạm dừng. Bộ hẹn giờ tiếp tục mô phỏng kể cả khi trình duyệt ngừng vẽ tab nền. Bước vật lý vẫn giữ 1/60 giây; đồng hồ dùng thời gian đã trôi qua để xử lý khi nhịp hẹn giờ bị giãn. Khi trở lại, game hiển thị trạng thái đang có mà không tính thời gian hai lần.
+
+Nút **Tạm dừng** vẫn dừng trận theo yêu cầu của bạn. Thắng, thua hoặc đủ 5 phút vẫn kết thúc và gọi tự lưu log nếu chạy bằng `MO-GAME-TU-LUU-LOG.cmd`. Hãy giữ tab và chương trình khởi chạy mở. Trình duyệt đóng băng/hủy tab để tiết kiệm bộ nhớ hoặc máy vào chế độ ngủ vẫn có thể ngừng thực thi; game xử lý tiếp thời gian còn thiếu khi được chạy lại.

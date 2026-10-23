@@ -131,6 +131,7 @@
       tenNguoiChoi: lay('ten-nguoi-choi').value, mauNguoiChoi: lay('mau-nguoi-choi').value });
     trangThai = 'san-sang';
     tichLuy = 0;
+    mocHinh = performance.now();
     maSuKienCu = -1;
     lay('ket-qua').hidden = true;
     lay('phan-tich-log').hidden = true;
@@ -394,22 +395,31 @@
   }
 
   // Tần số vật lý giữ nguyên ở mọi tốc độ phát; không dùng thời gian vẽ để lái xe.
-  function khungHinh(moc) {
-    const thoiGianQua = Math.max(0, Math.min(.1, (moc - (mocHinh || moc)) / 1000));
+  function capNhatMoPhong(moc) {
+    // Dùng một đồng hồ chung cho bộ hẹn giờ và vòng vẽ để không chạy gấp đôi.
+    moc = Math.max(moc, mocHinh);
+    const thoiGianQua = Math.max(0, (moc - (mocHinh || moc)) / 1000);
     mocHinh = moc;
     if (trangThai === 'dang-chay') {
       tichLuy += thoiGianQua * tocDo;
       let soBuoc = 0;
-      while (tichLuy + 1e-9 >= BUOC_CO_DINH && soBuoc < 12 && !tran.ketThuc) {
+      while (tichLuy + 1e-9 >= BUOC_CO_DINH && soBuoc < 120 && !tran.ketThuc) {
         D.buocMoPhong(tran, BUOC_CO_DINH, (xe, theGioi) => xe.laNguoiChoi ? D.layAINguoiChoi()(xe, theGioi) : D.AIBot(xe, theGioi));
         tichLuy = Math.max(0, tichLuy - BUOC_CO_DINH); soBuoc++;
       }
       if (tran.ketThuc) ketThucTran();
       if (moc - mocBang > 120) { capNhatBang(); mocBang = moc; }
     }
-    veTran();
+  }
+
+  function khungHinh() {
+    capNhatMoPhong(performance.now());
+    if (!document.hidden) veTran();
     requestAnimationFrame(khungHinh);
   }
+  // requestAnimationFrame thường dừng khi tab bị ẩn. Hẹn giờ vẫn cập nhật
+  // mô phỏng bằng thời gian thực, kể cả khi trình duyệt giãn nhịp gọi.
+  setInterval(() => capNhatMoPhong(performance.now()), 100);
 
   lay('nut-xem-log').addEventListener('click', () => {
     lay('phan-tich-log').textContent = D.phanTichNhatKy(D.xuatNhatKy(tran));
@@ -467,9 +477,9 @@
     if (e.key.toLowerCase() === 'r') { e.preventDefault(); datLai(); }
   });
   document.addEventListener('visibilitychange', () => {
-    // Không để trận đấu tiếp tục âm thầm khi người dùng đổi sang thẻ khác.
-    if (document.hidden && trangThai === 'dang-chay') { trangThai = 'tam-dung'; tichLuy = 0; capNhatDieuKhien(); capNhatBang(); }
-    mocHinh = 0;
+    capNhatMoPhong(performance.now());
+    capNhatBang();
+    if (!document.hidden) veTran();
   });
   document.addEventListener('fullscreenchange', capNhatToanManHinh);
   window.addEventListener('resize', chinhKichThuoc);
