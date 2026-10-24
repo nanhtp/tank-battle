@@ -592,9 +592,12 @@ kiemTra('Tạm dừng đóng băng vật lý; tiếp tục chạy tiếp trận 
   assert.equal(p.cacTran.length, 1, 'Tạm dừng/tiếp tục không bốc lại trận');
 });
 
-kiemTra('Ba tốc độ giữ bước vật lý và cập nhật trạng thái chọn', () => {
-  for (const tocDo of [0.5, 1, 2]) {
+kiemTra('Bốn tốc độ 1×, 2×, 5×, 8× giữ bước vật lý và cập nhật trạng thái chọn', () => {
+  assert.deepEqual(taoPhien().taiLieu.querySelectorAll('[data-toc-do]').map(n => Number(n.dataset.tocDo)), [1, 2, 5, 8]);
+  for (const tocDo of [1, 2, 5, 8]) {
     const p = taoPhien();
+    p.D.dangKyAI(() => ({ ga: 0, quay: 0, ban: false }));
+    p.D.AIBot = () => ({ ga: 0, quay: 0, ban: false });
     const banDoDau = JSON.stringify(p.tran().tuong);
     p.tocDo(tocDo);
     for (const nut of p.taiLieu.querySelectorAll('[data-toc-do]')) {
@@ -779,13 +782,13 @@ kiemTra('Tự đấu lại mặc định tắt; không tự tạo trận khi ch�
 });
 
 kiemTra('Thắng, thua, hòa đều đếm đủ 5 giây thực ở nền rồi đấu lại, giữ thiết lập', () => {
-  for (const kq of ['thang', 'thua', 'hoa']) {
+  for (const tocDo of [1, 2, 5, 8]) for (const kq of ['thang', 'thua', 'hoa']) {
     const p = taoPhien(); p.chon('ten-nguoi-choi', 'Xe thử'); p.chon('mau-nguoi-choi', '#112233');
-    p.chon('cap-bot', 8); p.tocDo(2);
+    p.chon('cap-bot', 8); p.tocDo(tocDo);
     p.lay('tu-dau-lai').checked = true; p.lay('tu-dau-lai').phat('change');
     if (kq === 'hoa') p.tran().thoiGian = 300 - 1 / 120;
     else for (const [i,x] of p.tran().xe.entries()) if (kq === 'thua' ? i === 0 : i > 0) { x.hp = 0; x.conSong = false; }
-    p.nhan('nut-bat-dau'); p.khung(1, 1000 / 120);
+    p.nhan('nut-bat-dau'); p.khung(1, 1000 / 60 / tocDo);
     const cu = p.tran(); assert.equal(cu.ketQua, kq);
     assert(p.lay('dem-nguoc-dau-lai').textContent.includes('5 giây'));
     p.taiLieu.hidden = true; p.nhipNen(4);
@@ -796,7 +799,7 @@ kiemTra('Thắng, thua, hòa đều đếm đủ 5 giây thực ở nền rồi 
     assert.equal(p.tran().xe[0].ten, 'Xe thử'); assert.equal(p.tran().xe[0].mau, '#112233');
     assert.equal(p.tran().capBot, 8); assert.equal(nhanNut(p), 'Tạm dừng');
     assert.equal(p.lay('tu-dau-lai').checked, true);
-    p.nhipNen(1, 100); assert(Math.abs(p.tran().thoiGian - .2) < 1e-6);
+    p.nhipNen(1, 100); assert(Math.abs(p.tran().thoiGian - .1 * tocDo) < 1e-6);
   }
 });
 
@@ -833,7 +836,7 @@ kiemTra('Worker vẫn kết thúc và tự đấu lại khi vòng vẽ và hẹn
 });
 
 kiemTra('Nhịp nền trễ không bắt đầu lại 5 giây khi xử lý bù thắng, thua hoặc hòa', () => {
-  for (const tocDo of [.5, 1, 2]) for (const kq of ['thang', 'thua', 'hoa']) {
+  for (const tocDo of [1, 2, 5, 8]) for (const kq of ['thang', 'thua', 'hoa']) {
     const p = taoPhien(); p.lay('tu-dau-lai').checked = true; p.tocDo(tocDo);
     const cu = p.tran();
     if (kq === 'hoa') cu.thoiGian = 300 - 1 / 120;

@@ -27,7 +27,7 @@ Nếu trình duyệt không cho phép bật toàn màn hình, game dùng chế �
 - **Cấp bot:** từ 1 đến 10, mặc định cấp 5. Cấp đang chọn áp dụng cho tất cả bot và được ghi cạnh tên trong bảng đội hình. Muốn đổi cấp khi đang đấu, nhấn Đặt lại trước. Đấu lại giữ cấp đã chọn và tạo trận ngẫu nhiên mới.
 - **Chế độ 3 HP:** mỗi viên đạn trúng gây mất 1 HP. **Chế độ 1 hit:** một lần trúng đạn là bị loại.
 - **Diễn biến ngẫu nhiên:** mỗi lần mở game, đặt lại hoặc đấu lại đều có nguồn ngẫu nhiên mới. Bản đồ thay đổi vị trí, kích thước và số lượng chướng ngại vật; vị trí xuất phát và thứ tự các xe cũng thay đổi. Bot chọn hướng tiếp cận và mục tiêu dựa trên cấp độ, tình huống và một phần ngẫu nhiên. Tạm dừng rồi tiếp tục vẫn giữ đúng trận đang chơi.
-- **Tốc độ 0,5× / 1× / 2×:** thay đổi tốc độ xem trận; đồng hồ trận và mọi dự đoán vẫn tính theo thời gian trong game.
+- **Tốc độ 1× / 2× / 5× / 8×:** thay đổi tốc độ xem trận; đồng hồ trận và mọi dự đoán vẫn tính theo thời gian trong game.
 - **Hiện dự đoán AI:** bật hoặc tắt lớp hiển thị đường dự kiến và thông tin quyết định của xe bạn. Việc tắt lớp này không tắt AI.
 
 Điểm nguy hiểm từ 0 đến 100 là **điểm đánh giá theo quy tắc**, không phải xác suất trúng đạn. Các đường dự kiến là xấp xỉ theo trạng thái hiện tại; AI sẽ tính lại khi xe khác đổi hướng, xuất hiện đạn mới hoặc xảy ra va chạm.
@@ -190,7 +190,7 @@ Mô-đun `nhat-ky.js` xử lý ghi dữ liệu và tạo báo cáo. Chạy kiể
 
 1. **Thắng:** xe của bạn còn sống và toàn bộ đối thủ đã bị loại.
 2. **Thua:** xe của bạn bị loại, kể cả khi các bot khác vẫn còn sống. Nếu tất cả xe bị loại trong cùng bước mô phỏng, bạn vẫn nhận kết quả thua.
-3. **Hòa:** sau đúng **300 giây thời gian mô phỏng**, bạn và ít nhất một đối thủ còn sống. Thời gian tạm dừng không được tính; tốc độ xem 0,5× / 1× / 2× vẫn dùng cùng đồng hồ trận.
+3. **Hòa:** sau đúng **300 giây thời gian mô phỏng**, bạn và ít nhất một đối thủ còn sống. Thời gian tạm dừng không được tính; tốc độ xem 1× / 2× / 5× / 8× vẫn dùng cùng đồng hồ trận.
 
 Nếu thắng hoặc thua trong bước chạm mốc 300 giây, kết quả thắng/thua được ưu tiên hơn hòa. Sau khi kết thúc, xe, đạn và đồng hồ ngừng cập nhật; bạn vẫn có thể xem phân tích, lưu log hoặc Đấu lại. Log ghi `ketQua` (`thang`, `thua`, `hoa`) và `lyDoKetThuc`. Tệp log cũ vẫn đọc được. Quy tắc này không thay đổi thuật toán AI.
 
@@ -227,7 +227,7 @@ Nút **Tạm dừng** vẫn dừng trận theo yêu cầu của bạn. Thắng, 
 
 ## Tự động đấu lại sau 5 giây
 
-Đánh dấu **Tự động đấu lại (5s)** ở hàng điều khiển phía trên bản đồ. Mặc định tùy chọn này tắt. Sau mỗi trận thắng, thua hoặc hòa, bảng kết quả đếm ngược 5 giây thực rồi tự tạo và bắt đầu trận mới. Tốc độ mô phỏng 0,5× / 1× / 2× không đổi độ dài đếm ngược. Tên, màu xe, số bot, cấp bot, HP, tốc độ và checkbox được giữ qua các trận; bản đồ và diễn biến tạo mới.
+Đánh dấu **Tự động đấu lại (5s)** ở hàng điều khiển phía trên bản đồ. Mặc định tùy chọn này tắt. Sau mỗi trận thắng, thua hoặc hòa, bảng kết quả đếm ngược 5 giây thực rồi tự tạo và bắt đầu trận mới. Tốc độ mô phỏng 1× / 2× / 5× / 8× không đổi độ dài đếm ngược. Tên, màu xe, số bot, cấp bot, HP, tốc độ và checkbox được giữ qua các trận; bản đồ và diễn biến tạo mới.
 
 Bỏ chọn checkbox để hủy đếm ngược. Nếu bật lại khi đang xem kết quả, bắt đầu một lượt đếm ngược 5 giây mới. Nhấn Đặt lại hoặc Đấu lại bằng tay cũng hủy lịch cũ. Tính năng vẫn hoạt động khi tab chạy nền, theo nhịp xử lý mà trình duyệt cho phép.
 
