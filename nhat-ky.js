@@ -13,20 +13,52 @@
         chanTroi: p.chanTroi, diem: p.diem, phienBan: p.phienBan,
         rutLui: p.rutLui, beTac: p.beTac, diemDen: p.diemDen, kieuNgam: p.kieuNgam,
         chuoiLenh: p.chuoiLenh, satThuongGan: p.satThuongGan, thoiDiemQuyetDinh: p.thoiDiemQuyetDinh,
+        keHoachId: p.keHoachId, tuoiKeHoach: p.tuoiKeHoach, tiepTucKeHoach: p.tiepTucKeHoach,
+        biLap: p.biLap, canRut: p.canRut, khanCap: p.khanCap, tiepXucDau: p.tiepXucDau, chuDongMoGoc: p.chuDongMoGoc,
         ungVien: p.ungVien.map(u => ({ diem: u.diem, nguyHiem: u.nguyHiem,
           ga: u.ga, quay: u.quay, chuoiLenh: u.chuoiLenh, satThuongGan: u.satThuongGan,
-          vaChamSom: u.vaChamSom })), duongChon: p.duongChon } : null };
+          vaChamSom: u.vaChamSom, tiepXucDau: u.tiepXucDau,
+          nguyCoMatMang: u.nguyCoMatMang, loai: u.loai })), duongChon: p.duongChon } : null };
   }
   D.khoiTaoNhatKy = tran => {
-    tran.nhatKy = { suKien: [], satThuong: [], dienBien: [], mocCuoi: -1 };
+    tran.nhatKy = { suKien: [], satThuong: [], dienBien: [], phatBan: [], choNgam: [], theoDan: new Map(), mocCuoi: -1 };
     D.ghiDienBien(tran);
   };
   D.ghiDienBien = (tran, batBuoc = false) => {
     const n = tran.nhatKy;
+    if (n) {
+      n.choNgam = n.choNgam.filter(p => {
+        if (p.thoiDiemKiemChung > tran.thoiGian) return true;
+        const dich = tran.xe.find(x => x.id === p.mucTieuId && x.conSong);
+        p.danhGia = dich ? { thoiGian: tran.thoiGian, viTriThuc: { x: dich.x, y: dich.y },
+          saiSo: Math.hypot(dich.x - p.diemNgam.x, dich.y - p.diemNgam.y) } : { lyDo: 'muc-tieu-da-bi-loai' };
+        return false;
+      });
+    }
     if (!n || (!batBuoc && tran.thoiGian - n.mocCuoi < .25)) return;
     n.mocCuoi = tran.thoiGian;
     n.dienBien.push(saoChep({ thoiGian: tran.thoiGian, bo: tran.vungAnToan,
       xe: tran.xe.map(chupXe), dan: tran.dan }));
+  };
+  D.ghiPhatBan = (tran, xe, dan, biChan) => {
+    if (!tran.nhatKy || !xe.laNguoiChoi) return;
+    const pt = xe.boNhoAI.phanTich;
+    const diem = pt?.diemNgam;
+    const p = saoChep({ thoiGian: tran.thoiGian, danId: dan?.id || null,
+      viTriXe: { x: xe.x, y: xe.y }, gocNong: xe.gocNong, biChanTaiNong: biChan,
+      phienBanAI: pt?.phienBan, kieuNgam: pt?.kieuNgam, mucTieuId: pt?.mucTieu?.id,
+      diemNgam: diem, thoiDiemQuyetDinh: pt?.thoiDiemQuyetDinh,
+      thoiDiemKiemChung: diem ? tran.thoiGian + Math.max(0, (Math.hypot(diem.x - xe.x, diem.y - xe.y) - 25) / D.hangSo.tocDoDan) : null,
+      ketQua: biChan ? { loai: 'chan-tai-nong', thoiGian: tran.thoiGian } : null });
+    tran.nhatKy.phatBan.push(p);
+    if (dan) tran.nhatKy.theoDan.set(dan.id, p);
+    if (diem && !biChan) tran.nhatKy.choNgam.push(p);
+  };
+  D.ghiKetQuaPhatBan = (tran, dan, loai, xeTrungId, x, y) => {
+    const p = tran.nhatKy?.theoDan.get(dan.id);
+    if (!p) return;
+    p.ketQua = { loai, thoiGian: tran.thoiGian, xeTrungId, x, y };
+    tran.nhatKy.theoDan.delete(dan.id);
   };
   D.ghiSatThuong = (tran, xe, soMau, nguoiBan, dan) => {
     if (!tran.nhatKy) return;
@@ -54,7 +86,8 @@
       thoiGian: tran.thoiGian, ketThuc: tran.ketThuc, ketQua: tran.ketQua, lyDoKetThuc: tran.lyDoKetThuc,
       nguoiThang: tran.nguoiThang ? tran.nguoiThang.ten : null,
       xeCuoi: tran.xe.map(chupXe), suKien: tran.nhatKy.suKien,
-      satThuong: tran.nhatKy.satThuong, dienBien: tran.nhatKy.dienBien });
+      satThuong: tran.nhatKy.satThuong, dienBien: tran.nhatKy.dienBien,
+      phatBan: tran.nhatKy.phatBan });
     log.baoCao = D.phanTichNhatKy(log);
     return log;
   };

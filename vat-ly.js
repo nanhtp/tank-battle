@@ -353,6 +353,7 @@
     const y = xe.y + Math.sin(xe.gocNong) * 25;
     const tuongChan = vaChamTuong(xe.x, xe.y, x, y, tran.tuong, H.banKinhDan);
     if (tuongChan !== null) {
+      if (D.ghiPhatBan) D.ghiPhatBan(tran, xe, null, true);
       themHieuUng(tran, xe.x + (x - xe.x) * tuongChan,
         xe.y + (y - xe.y) * tuongChan, xe.mau, 'tia');
       return;
@@ -363,6 +364,7 @@
       vy: Math.sin(xe.gocNong) * H.tocDoDan,
       chuId: xe.id, mau: xe.mau, tuoi: 0
     });
+    if (D.ghiPhatBan) D.ghiPhatBan(tran, xe, tran.dan[tran.dan.length - 1], false);
     themHieuUng(tran, x, y, '#fff5c6', 'nong');
   }
 
@@ -450,6 +452,7 @@
       if (somNhat !== null) {
         const diemX = dan.x + (x2 - dan.x) * somNhat;
         const diemY = dan.y + (y2 - dan.y) * somNhat;
+        if (D.ghiKetQuaPhatBan) D.ghiKetQuaPhatBan(tran, dan, xeTrung ? 'trung-xe' : 'cham-tuong-hoac-bien', xeTrung?.id || null, diemX, diemY);
         themHieuUng(tran, diemX, diemY, xeTrung ? xeTrung.mau : '#c6d5df', 'tia');
         if (xeTrung) {
           const nguoiBan = tran.xe.find(function (xe) { return xe.id === dan.chuId; });
@@ -461,6 +464,8 @@
         dan.x = x2;
         dan.y = y2;
         danConLai.push(dan);
+      } else if (D.ghiKetQuaPhatBan) {
+        D.ghiKetQuaPhatBan(tran, dan, 'het-tuoi', null, x2, y2);
       }
     }
     tran.dan = danConLai;

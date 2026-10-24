@@ -38,11 +38,11 @@ test('Ảnh ghi không bị thay đổi sau này, dữ liệu xuất độc lậ
  assert(log.baoCao.includes('Trận chưa kết thúc'));
 });
 test('Ghi log không thay đổi kết quả vật lý hoặc ngẫu nhiên',()=>{
- const a=match(3), b=match(3), ghi=D.ghiDienBien;
+ const a=match(3), b=match(3), moc={ghiDienBien:D.ghiDienBien,ghiPhatBan:D.ghiPhatBan,ghiKetQuaPhatBan:D.ghiKetQuaPhatBan};
  for(let i=0;i<120;i++) D.buocMoPhong(a,1/60,(x,t)=>x.laNguoiChoi?D.AINguoiChoi(x,t):D.AIBot(x,t));
- D.ghiDienBien=undefined;
+ for(const k of Object.keys(moc))D[k]=undefined;
  try { for(let i=0;i<120;i++) D.buocMoPhong(b,1/60,(x,t)=>x.laNguoiChoi?D.AINguoiChoi(x,t):D.AIBot(x,t)); }
- finally {D.ghiDienBien=ghi;}
+ finally {Object.assign(D,moc);}
  assert.equal(JSON.stringify(a.xe),JSON.stringify(b.xe)); assert.equal(a._trangThaiNgauNhien,b._trangThaiNgauNhien);
  assert(a.nhatKy.dienBien.length>=7);
 });
@@ -50,5 +50,18 @@ test('Log mới độc lập, tệp sai định dạng bị từ chối',()=>{
  assert.throws(()=>D.kiemTraNhatKy({}),/định dạng/);
  const a=match(),b=match(); a.nhatKy.suKien.push({noiDung:'thử'}); assert.notEqual(a.nhatKy.suKien.length,b.nhatKy.suKien.length);
  const log=D.xuatNhatKy(a); log.phienBan=999; assert.throws(()=>D.kiemTraNhatKy(log));
+});
+test('Gắn mô hình ngắm với từng phát bắn, kết quả trúng và sai số khi tới mốc',()=>{
+ const t=match(3),x=t.xe[0];x.boNhoAI.phanTich={ungVien:[],phienBan:D.phienBanAI,kieuNgam:'dich-dang-dung',mucTieu:{id:'bot-1'},diemNgam:{x:600,y:300},thoiDiemQuyetDinh:0};
+ const ban=(xe)=>xe.laNguoiChoi?{ga:0,quay:0,gocNong:0,ban:true}:idle();
+ for(let i=0;i<42;i++)D.buocMoPhong(t,1/60,ban);
+ const p=t.nhatKy.phatBan[0];assert(p);assert.equal(p.kieuNgam,'dich-dang-dung');assert.equal(p.ketQua.loai,'trung-xe');assert.equal(p.ketQua.xeTrungId,'bot-1');assert(p.danhGia.saiSo<1e-6);
+ const l=D.xuatNhatKy(t);assert.equal(l.phatBan.length,t.nhatKy.phatBan.length);l.phatBan[0].diemNgam.x=-1;assert.equal(p.diemNgam.x,600);
+ delete l.phatBan;D.kiemTraNhatKy(l);
+});
+test('Phát bắn bị chặn ở đầu nòng vẫn có bản ghi riêng',()=>{
+ const t=match(3);t.tuong=[{x:310,y:280,rong:20,cao:40}];
+ D.buocMoPhong(t,1/60,x=>x.laNguoiChoi?{ga:0,quay:0,gocNong:0,ban:true}:idle());
+ assert(t.nhatKy.phatBan[0].biChanTaiNong);assert.equal(t.nhatKy.phatBan[0].ketQua.loai,'chan-tai-nong');assert.equal(t.dan.length,0);
 });
 console.log(`${passed} nhóm nhật ký đạt.`);

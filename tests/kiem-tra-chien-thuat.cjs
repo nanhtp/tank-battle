@@ -22,10 +22,12 @@ thu('Địch sắp bắn ở cự ly gần được dự đoán dù chưa có đ
   const p=suyNghi(t);assert.equal(p.soDanTheoDoi,0);
   assert(p.ungVien.some(u=>u.nguyHiem>=0.6));assert.equal(p.ungVien.length,27);
 });
-thu('Ít máu và vừa nhận sát thương chuyển sang bảo toàn mạng rồi hết hạn',()=>{
+thu('Bảo toàn mạng duy trì khi còn áp lực, chỉ hết khi an toàn ổn định',()=>{
   const t=tranTrong(),x=t.xe[0];assert.equal(suyNghi(t).rutLui,false);
   x.hp=2;t.thoiGian=.1;assert.equal(suyNghi(t).rutLui,true);
-  t.thoiGian=4;assert.equal(suyNghi(t).rutLui,false);
+  t.thoiGian=4;assert.equal(suyNghi(t).rutLui,true);
+  t.xe[1].x=900;t.thoiGian=4.1;suyNghi(t);
+  t.thoiGian=5.4;assert.equal(suyNghi(t).rutLui,false);
   x.hp=1;t.thoiGian=10;assert.equal(suyNghi(t).rutLui,true);
 });
 thu('Đường đổi lệnh nhiều bước khớp vật lý 1/60; có đổi chiều và rẽ ngược',()=>{
@@ -76,5 +78,34 @@ thu('Log lưu phiên bản, chế độ và chuỗi lệnh; đọc lại đượ
   const log=D.xuatNhatKy(t);D.kiemTraNhatKy(log);assert.equal(log.cauHinh.phienBanAI,D.phienBanAI);
   const p=log.dienBien.at(-1).xe[0].phanTich;assert.equal(p.phienBan,D.phienBanAI);assert(Array.isArray(p.chuoiLenh));assert.equal(p.thoiDiemQuyetDinh,0);
   delete log.cauHinh.phienBanAI;delete p.chuoiLenh;D.kiemTraNhatKy(log);
+});
+thu('Tiếp tục kế hoạch dùng phần còn lại; không đặt lại mốc đổi lệnh 0,3 giây',()=>{
+  const t=tranTrong();t.xe[1].x=900;t.thoiGian=10;
+  t.xe[0].boNhoAI.keHoach={id:91,batDau:9.9,khoaDiemDen:'tu-do',chuoi:[{ga:1,quay:0,den:.3},{ga:-1,quay:0,den:1.5}]};
+  const p=suyNghi(t),u=p.ungVien.find(u=>u.loai==='tiep-tuc');assert(u);
+  assert(Math.abs(u.chuoiLenh[0].den-.2)<1e-6);
+});
+thu('Tiếp xúc đầu tiên sớm hơn điểm gần nhất và né khẩn cấp có thêm mức điều khiển',()=>{
+  const t=tranTrong();t.xe[1].x=900;
+  t.dan=[{id:5,x:400,y:480,vx:440,vy:0,chuId:'bot-1',tuoi:0}];
+  const p=suyNghi(t);assert(p.khanCap);assert(p.ungVien.some(u=>u.loai==='ne-khan-cap'));
+  const dungYen=p.ungVien.find(u=>u.ga===0&&u.quay===0&&u.loai==='co-ban');
+  assert(Math.abs(dungYen.tiepXucDau-(80-H.banKinhXe-H.banKinhDan)/440)<1e-6);
+  assert(dungYen.tiepXucDau<dungYen.vaChamSom);
+});
+thu('Phát hiện mắc kẹt thì loại kế hoạch cũ và đánh dấu điểm cần đổi',()=>{
+  const t=tranTrong(),x=t.xe[0];t.xe[1].x=900;t.thoiGian=8;
+  x.boNhoAI.diVong={x:600,y:600,dichId:'bot-1',loai:'di-vong',hetHan:20};
+  x.boNhoAI.lichSuViTri=Array.from({length:12},(_,i)=>({x:480,y:480,t:5.6+i*.2}));
+  const p=suyNghi(t);assert(p.biLap);assert(x.boNhoAI.diemBiKet);
+});
+thu('Ba vị trí bế tắc trong log cũ đều tìm góc bắn trước đối thủ đứng yên',()=>{
+ const cases=JSON.parse(fs.readFileSync(path.join(__dirname,'fixtures/be-tac-ai-2.json'),'utf8'));
+ for(const c of cases){
+  const t=tranTrong();t.thoiGian=150;t.vungAnToan=300;t.tuong=c.tuong;
+  c.xe.sort((a,b)=>Number(b.laNguoiChoi)-Number(a.laNguoiChoi)).forEach((p,i)=>Object.assign(t.xe[i],p));
+  for(let i=0;i<2400&&!t.ketThuc&&t.xe[0].soTrung===0;i++)D.buocMoPhong(t,1/60,(x,s)=>x.laNguoiChoi?D.AINguoiChoi(x,s):{ga:0,quay:0,gocNong:x.gocNong,ban:false});
+  assert(t.xe[0].soTrung>0,`Vẫn kẹt ở ${c.nguon}: (${t.xe[0].x},${t.xe[0].y})`);
+ }
 });
 console.log(`${dat} nhóm chiến thuật đạt.`);

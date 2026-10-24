@@ -474,7 +474,7 @@ if (typeof D.AINguoiChoi === 'function' && typeof D.AIBot === 'function') {
     }
     const xe = tran.xe[0];
     const phanTich = xe.boNhoAI.phanTich;
-    assert(phanTich.ungVien.length >= 15 && phanTich.ungVien.length <= 29);
+    assert(phanTich.ungVien.length >= 15 && phanTich.ungVien.length <= 48);
     assert.equal(phanTich.duongChon.length, 15);
     assert.equal(phanTich.chanTroi, 1.5);
     assert(Math.abs(phanTich.duongChon.at(-1).t - 1.5) < 1e-6);

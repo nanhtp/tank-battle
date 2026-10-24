@@ -47,7 +47,7 @@ Bảng trạng thái cho biết số xe còn sống, thời gian, tình trạng 
 
 AI được tính lại mỗi **0,1 giây**. Vật lý chạy bằng bước cố định **1/60 giây** để đạn, va chạm và tốc độ xem hoạt động nhất quán.
 
-Bản **AI chiến thuật 2** giữ 15 hành động cơ bản và thêm đường đổi hướng/đổi chiều khi có đạn hoặc đối thủ ở gần, cùng đường tới góc vật cản khi cần. Tổng cộng **15–29 phương án**, mỗi phương án dự đoán **1,5 giây**. Chuỗi hành động được xem xét lại sau mỗi 0,1 giây; không buộc xe thực hiện hết khi xuất hiện nguy hiểm mới. Các tiêu chí gồm:
+Bản **AI chiến thuật 3** giữ 15 hành động cơ bản và thêm đường đổi hướng/đổi chiều khi có đạn hoặc đối thủ ở gần, cùng đường tới góc vật cản khi cần. Tổng cộng **15–44 phương án**, mỗi phương án dự đoán **1,5 giây**. Chuỗi hành động được xem xét lại sau mỗi 0,1 giây; không buộc xe thực hiện hết khi xuất hiện nguy hiểm mới. Các tiêu chí gồm:
 
 1. Nguy cơ trúng đạn và mức an toàn của đường đi.
 2. Khoảng cách tới tường, chướng ngại vật và vùng an toàn.
@@ -71,16 +71,14 @@ Các thông số tăng dần theo từng cấp, gồm độ trễ phản ứng k
 
 Lập trình viên có thể xem cấu hình bằng `DauTruong.cauHinhCapBot(cap)` và chọn cấp khi tạo trận qua `capBot`. Cấu hình có các trường `trePhanUng`, `saiSoNgam`, `tyLeDonDau`, `chanTroi` và `soUngVien`.
 
-### Bốn cải tiến của AI chiến thuật 2
+### AI chiến thuật 3: thực hiện kế hoạch và rút lui
 
-- **Giữ khoảng cách và bảo toàn mạng:** xét phát bắn có thể sắp xảy ra, tránh đi vào cự ly quá gần trên đường di chuyển. Khi còn tối đa 40% HP hoặc vừa mất máu đáng kể, ưu tiên rút lui, vật che và tránh nhiều hướng bắn. Phạt đi ngoài bo mạnh hơn khi chỉ còn 1 HP.
-- **Né đạn nhiều bước:** thử rẽ rồi đổi bên, tiến rồi lùi và quay tại chỗ rồi đi/phanh. Đường dự kiến trúng ít đạn thật hơn trong 0,6 giây đầu được ưu tiên trước điểm vị trí hoặc cơ hội bắn. Phát bắn giả thuyết có trọng số thấp hơn đạn thật để xe vẫn tìm được góc tấn công.
-- **Phá bế tắc:** dùng đồ thị các góc vật cản có khoảng đệm đủ cho thân xe. Khi đấu tay đôi quá 7 giây không ghi thêm phát trúng, tìm điểm tiếp cận mới và tiếp tục kiểm tra đạn, tường, bo trước khi di chuyển.
-- **Ngắm theo chuyển động:** quan sát vận tốc và độ quay, so dự đoán cũ với vị trí đối thủ đã thực sự tới. Chỉ chọn mô hình chạy vòng khi sai số quan sát của nó thấp hơn mô hình đi thẳng; vẫn xét điểm dừng trước tường và tăng ưu tiên mục tiêu ít máu.
+- **Kế hoạch liên tục:** đưa phần chuỗi chưa thực hiện vào tập so sánh, giữ mốc bắt đầu và chỉ thay khi an toàn hơn hoặc điểm tốt hơn rõ rệt. Thưởng tiến bộ ở nhiều mốc gần, không chỉ ở cuối đường; phát hiện chạy lặp trong vùng nhỏ để đổi điểm đến.
+- **Đi vòng phù hợp khi ít máu:** tìm nhiều vòng vị trí quanh mục tiêu ở bán kính 170/210/250, chấm mức lộ thiên và khoảng cách cùng với đường đi. Giữ cả các điểm trung gian của đường vòng; có thể chủ động đổi góc khi đấu tay đôi bế tắc, nhưng vẫn kiểm tra đạn thật và bo.
+- **Rút theo hành lang:** tạo điểm rút có xét các đối thủ và bo; khi vừa mất máu, chỉ kết thúc trạng thái rút lui sau thời gian tối thiểu và mức an toàn ổn định. Ít máu tiếp tục tăng ưu tiên bảo toàn mạng.
+- **Nguy cơ tức thời và log từng phát:** giải thời điểm tiếp xúc đầu tiên với đạn thật, thêm mức ga/rẽ khi nguy cấp. Ưu tiên giảm nguy cơ bị loại gần, giảm số đạn thật sắp chạm, trì hoãn nguy cơ không tránh được rồi so điểm. Log mỗi phát bắn ghi mô hình ngắm, điểm dự đoán, sai số khi tới mốc và kết quả đạn.
 
-AI chỉ đọc trạng thái hiện tại và ký ức quan sát của chính xe, không đọc lệnh hay bộ nhớ của đối thủ. Không đổi chỉ số HP/tốc độ/sát thương và AI của bot.
-
-Log mới ghi `cauHinh.phienBanAI`, trạng thái rút lui/bế tắc, kiểu ngắm, điểm đi vòng, thời điểm quyết định, chuỗi lệnh và số đạn thật có thể trúng sớm. Vẫn đọc được log cũ. Điểm nguy hiểm là điểm đánh giá, không phải xác suất; dự đoán không bảo đảm xe luôn thoát được đạn.
+Số phương án phụ thuộc tình huống, thường 15–44; đường đi vẫn dự đoán 1,5 giây với bước 1/60. AI người chơi không đọc lệnh hay bộ nhớ riêng của bot. Bot và các chỉ số HP/tốc độ/sát thương không đổi. Log mới dùng `chien-thuat-3`, vẫn đọc được log cũ. Xem toàn bộ công thức, sơ đồ luồng và cách chuyển nền tảng trong `CHIEN-THUAT-TANK-HIEN-TAI.md`.
 
 ## Thay AI của xe bạn
 

@@ -10,7 +10,7 @@
   const chanTroi = 1.5;
   const buocDuDoan = 0.1;
   let aiThayThe = null;
-  D.phienBanAI = "chien-thuat-2";
+  D.phienBanAI = "chien-thuat-3";
 
   const kep = (giaTri, nhoNhat, lonNhat) => Math.max(nhoNhat, Math.min(lonNhat, giaTri));
   const binhPhuong = giaTri => giaTri * giaTri;
@@ -75,6 +75,22 @@
     const tre = tocDoTuongDoi > 0.00001
       ? kep(-(dx * vx + dy * vy) / tocDoTuongDoi, 0, ketThuc - batDau) : 0;
     return { khoangCach: Math.hypot(dx + vx * tre, dy + vy * tre), t: batDau + tre };
+  }
+
+  // Nghiệm tiếp xúc ĐẦU TIÊN của hai vòng tròn, khác thời điểm gần nhất.
+  function tiepXucDauTien(dau, cuoi, dan, batDau, ketThuc) {
+    const dt = cuoi.t - dau.t;
+    const vxXe = (cuoi.x - dau.x) / dt, vyXe = (cuoi.y - dau.y) / dt;
+    const dx = dan.x + dan.vx * (batDau - dan.batDau) - dau.x - vxXe * (batDau - dau.t);
+    const dy = dan.y + dan.vy * (batDau - dan.batDau) - dau.y - vyXe * (batDau - dau.t);
+    const vx = dan.vx - vxXe, vy = dan.vy - vyXe;
+    const r = D.hangSo.banKinhXe + D.hangSo.banKinhDan;
+    const a = vx * vx + vy * vy, b = 2 * (dx * vx + dy * vy), c = dx * dx + dy * dy - r * r;
+    if (c <= 0) return batDau;
+    const delta = b * b - 4 * a * c;
+    if (a < 1e-8 || delta < 0) return Infinity;
+    const t = (-b - Math.sqrt(delta)) / (2 * a);
+    return t >= 0 && t <= ketThuc - batDau ? batDau + t : Infinity;
   }
 
   function theoDoiDan(xe, tran, doiThu, tamNhin = chanTroi, doanPhatBan = true) {
@@ -271,7 +287,7 @@
           const viTri = xeGiaLap;
           duong.push({ x: viTri.x, y: viTri.y, t: buoc * buocDuDoan });
         }
-        ungVien.push({ ga, quay, chuoi, duong, biCan, diem: 0, nguyHiem: 0 });
+        ungVien.push({ ga, quay, chuoi, loai: chuoi.loai || "co-ban", duong, biCan, diem: 0, nguyHiem: 0 });
     }
     return ungVien;
   }
@@ -304,14 +320,29 @@
 
   // Đồ thị các góc vật cản, có khoảng đệm bằng bán kính xe. Tìm đường
   // tới điểm mở góc bắn; không buộc xe lao vào vị trí đối thủ.
-  function timDiemDiVong(xe, tran, mucTieu, doiThu, beTac) {
+  function giaNguyCoViTri(p, tran, doiThu, rutLui) {
+    let gia = 0, lo = 0;
+    for (const d of doiThu) {
+      if (!duongBanThong(p, d, tran)) continue;
+      const tam = Math.min(khoangCach(p, d), Math.hypot(p.x - d.x - (d.vx || 0) * 0.5, p.y - d.y - (d.vy || 0) * 0.5));
+      gia += Math.max(0, (rutLui ? 270 : 190) - tam) * (rutLui ? 2.8 : 1.8);
+      if (tam < 400) lo++;
+    }
+    return gia + Math.max(0, lo - 1) * (rutLui ? 100 : 45);
+  }
+
+  function timDiemDiVong(xe, tran, mucTieu, doiThu, beTac, chienThuat) {
     if (!mucTieu) return null;
     const boNho = xe.boNhoAI;
     const biChe = !duongBanThong(xe, mucTieu.dich, tran);
-    if (!biChe && !beTac) { boNho.diVong = null; return null; }
-    if (boNho.diVong && boNho.diVong.dichId === mucTieu.dich.id &&
-        tran.thoiGian < boNho.diVong.hetHan && khoangCach(xe, boNho.diVong) > 22 &&
-        duongDiThong(xe, boNho.diVong, tran)) return boNho.diVong;
+    const loai = chienThuat.canRut ? "rut-lui" : "di-vong";
+    if (!biChe && !beTac && !chienThuat.canRut) { boNho.diVong = null; return null; }
+    const cu = boNho.diVong;
+    if (cu && cu.loai === loai && cu.dichId === mucTieu.dich.id && tran.thoiGian < cu.hetHan) {
+      while (khoangCach(xe, cu) <= 22 && cu.duongConLai?.length) Object.assign(cu, cu.duongConLai.shift());
+      const bienCu = D.tinhVungAnToan(tran.thoiGian + 1) + D.hangSo.banKinhXe + 5;
+      if (khoangCach(xe, cu) > 22 && Math.min(cu.x, cu.y, D.hangSo.kichThuoc - cu.x, D.hangSo.kichThuoc - cu.y) > bienCu && duongDiThong(xe, cu, tran)) return cu;
+    }
     const dem = D.hangSo.banKinhXe + 14;
     const bien = D.tinhVungAnToan(tran.thoiGian + 2) + dem;
     const hopLe = p => p.x > bien && p.y > bien && p.x < D.hangSo.kichThuoc - bien && p.y < D.hangSo.kichThuoc - bien &&
@@ -319,11 +350,22 @@
     const nut = [{ x: xe.x, y: xe.y }];
     for (const w of tran.tuong) for (const x of [w.x - dem, w.x + w.rong + dem])
       for (const y of [w.y - dem, w.y + w.cao + dem]) if (hopLe({ x, y })) nut.push({ x, y });
-    if (beTac) for (let i = 0; i < 12; i++) {
+    if (beTac || biChe) for (const tamVong of [170, 210, 250]) for (let i = 0; i < 12; i++) {
       const goc = i * Math.PI / 6;
-      const p = { x: mucTieu.dich.x + Math.cos(goc) * 250, y: mucTieu.dich.y + Math.sin(goc) * 250 };
+      const p = { x: mucTieu.dich.x + Math.cos(goc) * tamVong, y: mucTieu.dich.y + Math.sin(goc) * tamVong };
       if (hopLe(p)) nut.push(p);
     }
+    if (chienThuat.canRut) {
+      for (let i = 0; i < 12; i++) {
+        const goc = i * Math.PI / 6;
+        const p = { x: kep(xe.x + Math.cos(goc) * 150, bien + 1, D.hangSo.kichThuoc - bien - 1),
+          y: kep(xe.y + Math.sin(goc) * 150, bien + 1, D.hangSo.kichThuoc - bien - 1) };
+        if (hopLe(p) && khoangCach(xe, p) > 35) nut.push(p);
+      }
+      if (hopLe({ x: 480, y: 480 })) nut.push({ x: 480, y: 480 });
+    }
+    const giaNut = nut.map(p => giaNguyCoViTri(p, tran, doiThu, chienThuat.rutLui) +
+      (boNho.diemBiKet && tran.thoiGian < boNho.diemBiKet.hetHan && khoangCach(p, boNho.diemBiKet) < 45 ? 450 : 0));
     // Cho phép đi qua nhiều góc đối với các dãy tường.
     const diem = nut.map(() => Infinity), truoc = nut.map(() => -1), daXet = new Set();
     diem[0] = 0;
@@ -333,26 +375,29 @@
       if (i < 0 || !Number.isFinite(diem[i])) break;
       daXet.add(i);
       for (let j = 1; j < nut.length; j++) if (!daXet.has(j) && duongDiThong(nut[i], nut[j], tran)) {
-        const moi = diem[i] + khoangCach(nut[i], nut[j]);
+        const moi = diem[i] + khoangCach(nut[i], nut[j]) + (giaNut[i] + giaNut[j]) * 0.12;
         if (moi < diem[j]) { diem[j] = moi; truoc[j] = i; }
       }
     }
     let chon = -1, diemChon = Infinity;
     for (let j = 1; j < nut.length; j++) {
-      if (!duongBanThong(nut[j], mucTieu.dich, tran) || !Number.isFinite(diem[j])) continue;
-      if (beTac && !biChe) {
+      if ((!chienThuat.canRut && !duongBanThong(nut[j], mucTieu.dich, tran)) || !Number.isFinite(diem[j])) continue;
+      if (beTac && !biChe && !chienThuat.canRut) {
         const gocCu = Math.atan2(xe.y - mucTieu.dich.y, xe.x - mucTieu.dich.x);
         const gocMoi = Math.atan2(nut[j].y - mucTieu.dich.y, nut[j].x - mucTieu.dich.x);
         if (Math.abs(D.chuanHoaGoc(gocMoi - gocCu)) < 0.5 || khoangCach(xe, nut[j]) < 70) continue;
       }
       const tam = khoangCach(nut[j], mucTieu.dich);
       const loThien = doiThu.filter(d => khoangCach(nut[j], d) < 380 && duongBanThong(nut[j], d, tran)).length;
-      const gia = diem[j] + Math.max(0, 170 - tam) * 3 + Math.max(0, loThien - 1) * 90;
+      const biKet = boNho.diemBiKet && tran.thoiGian < boNho.diemBiKet.hetHan && khoangCach(nut[j], boNho.diemBiKet) < 45;
+      const gia = diem[j] + giaNut[j] + (chienThuat.canRut ? 0 : Math.max(0, (chienThuat.rutLui ? 240 : 190) - tam) * 2.8)
+        + Math.max(0, loThien - 1) * 60 + (biKet ? 600 : 0);
       if (gia < diemChon) { diemChon = gia; chon = j; }
     }
     if (chon < 0) return null;
-    while (truoc[chon] > 0) chon = truoc[chon];
-    boNho.diVong = { ...nut[chon], dichId: mucTieu.dich.id, hetHan: tran.thoiGian + 2 };
+    const duong = [];
+    for (let k = chon; k > 0; k = truoc[k]) duong.unshift({ ...nut[k] });
+    boNho.diVong = { ...duong[0], duongConLai: duong.slice(1), loai, dichId: mucTieu.dich.id, hetHan: tran.thoiGian + 6 };
     return boNho.diVong;
   }
 
@@ -362,11 +407,16 @@
       w.x - r, w.y - r, w.x + w.rong + r, w.y + w.cao + r) <= 1);
   }
 
-  function taoChuoiNe(xe, diemDen, coNguyCo) {
+  function taoChuoiNe(xe, diemDen, coNguyCo, khanCap) {
     const cacChuoi = [];
+    const mocDoi = khanCap ? 0.1 : 0.3;
     if (coNguyCo) for (const ga of [-1, 1]) for (const quay of [-1, 0, 1]) {
-      cacChuoi.push([{ ga, quay, den: 0.3 }, { ga, quay: -quay, den: chanTroi }]);
-      cacChuoi.push([{ ga, quay, den: 0.3 }, { ga: -ga, quay, den: chanTroi }]);
+      cacChuoi.push(Object.assign([{ ga, quay, den: mocDoi }, { ga, quay: -quay, den: chanTroi }], { loai: "doi-huong" }));
+      cacChuoi.push(Object.assign([{ ga, quay, den: mocDoi }, { ga: -ga, quay, den: chanTroi }], { loai: "doi-chieu" }));
+    }
+    if (khanCap) for (const ga of [-1, 1]) {
+      for (const quay of [-0.75, -0.25, 0.25, 0.75]) cacChuoi.push(Object.assign([{ ga, quay, den: chanTroi }], { loai: "ne-khan-cap" }));
+      for (const quay of [-1, 1]) cacChuoi.push(Object.assign([{ ga: ga * 0.5, quay, den: chanTroi }], { loai: "ne-khan-cap" }));
     }
     if (diemDen) for (const ga of [-1, 1]) {
       const goc = Math.atan2(diemDen.y - xe.y, diemDen.x - xe.x) + (ga < 0 ? Math.PI : 0);
@@ -375,7 +425,7 @@
       // chu kỳ chỉ để hứa sẽ tới điểm đến trong phần cuối dự đoán.
       if (Math.abs(lech) > Math.PI / 2) continue;
       const quay = Math.sign(lech), den = kep(Math.abs(lech) / D.hangSo.tocDoQuay, 0.1, 1.3);
-      cacChuoi.push([{ ga, quay, den }, { ga, quay: 0, den: chanTroi }]);
+      cacChuoi.push(Object.assign([{ ga, quay, den }, { ga, quay: 0, den: chanTroi }], { loai: "toi-diem" }));
       // Điểm đến gần cần phanh đúng chỗ; chỉ giữ ga suốt 1,5 giây sẽ
       // khiến xe chọn đứng yên vì mọi đường còn lại đều vượt quá góc tường.
       // Căn mốc đổi lệnh theo chu kỳ 0,1 giây để không quay quá góc
@@ -386,9 +436,48 @@
       if (thoiGianQuay > 0) chuoiDen.push({ ga: 0, quay: lech / (thoiGianQuay * D.hangSo.tocDoQuay), den: thoiGianQuay });
       if (toiDiem > thoiGianQuay) chuoiDen.push({ ga, quay: 0, den: toiDiem });
       chuoiDen.push({ ga: 0, quay: 0, den: chanTroi });
-      cacChuoi.push(chuoiDen);
+      cacChuoi.push(Object.assign(chuoiDen, { loai: "toi-diem" }));
     }
     return cacChuoi;
+  }
+
+  function phanKeHoachConLai(keHoach, thoiGian) {
+    if (!keHoach) return null;
+    const tre = thoiGian - keHoach.batDau;
+    if (tre < 0 || tre >= keHoach.chuoi.at(-1).den - 1e-6) return null;
+    const chuoi = keHoach.chuoi.filter(l => l.den > tre + 1e-6).map(l => ({ ...l, den: l.den - tre }));
+    // Đánh giá cả đoạn còn lại và phần giữ lệnh cuối cho đủ cùng chân trời.
+    chuoi.at(-1).den = chanTroi;
+    return Object.assign(chuoi, { loai: "tiep-tuc" });
+  }
+
+  function capNhatTrangThaiChienThuat(xe, tran, doiThu) {
+    const n = xe.boNhoAI;
+    const matMau = Number.isFinite(n.hpTruoc) && xe.hp < n.hpTruoc - 0.1;
+    const lo = doiThu.filter(d => khoangCach(xe, d) < 330 && duongBanThong(xe, d, tran));
+    const ganNhat = Math.min(Infinity, ...lo.map(d => khoangCach(xe, d)));
+    const r = D.hangSo.banKinhXe;
+    const ngoaiBo = Math.min(xe.x, xe.y, D.hangSo.kichThuoc - xe.x, D.hangSo.kichThuoc - xe.y) < D.tinhVungAnToan(tran.thoiGian + 0.6) + r;
+    if (matMau) { n.rutLuiDen = tran.thoiGian + 3; n.lanMatMau = tran.thoiGian; n.dangRutLui = true; }
+    const daAnToan = lo.length <= 1 && ganNhat > 280 && !ngoaiBo;
+    if (!daAnToan) n.anToanTu = null;
+    else if (n.anToanTu == null) n.anToanTu = tran.thoiGian;
+    if (n.dangRutLui && daAnToan && tran.thoiGian - n.anToanTu >= 1.2 && tran.thoiGian >= n.rutLuiDen) n.dangRutLui = false;
+    n.hpTruoc = xe.hp;
+    const rutLui = xe.hp / xe.hpToiDa <= 0.4 || !!n.dangRutLui;
+    if (!n.lichSuViTri) n.lichSuViTri = [];
+    if (!n.lichSuViTri.length || tran.thoiGian - n.lichSuViTri.at(-1).t >= 0.19) n.lichSuViTri.push({ x: xe.x, y: xe.y, t: tran.thoiGian });
+    n.lichSuViTri = n.lichSuViTri.filter(p => tran.thoiGian - p.t <= 2.6);
+    let biLap = false;
+    if (n.diVong && n.lichSuViTri.length > 8 && tran.thoiGian - n.lichSuViTri[0].t >= 2 && khoangCach(xe, n.diVong) > 22) {
+      const xs = n.lichSuViTri.map(p => p.x), ys = n.lichSuViTri.map(p => p.y);
+      biLap = Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) < 35;
+      if (biLap) {
+        n.diemBiKet = { ...n.diVong, hetHan: tran.thoiGian + 6 };
+        n.diVong = null; n.keHoach = null; n.lichSuViTri = [];
+      }
+    }
+    return { rutLui, ngoaiBo, canRut: ngoaiBo || (rutLui && (lo.length >= 2 || ganNhat < 225)), biLap };
   }
 
   function chamDiem(ungVien, xe, tran, cacDan, doiThu, mucTieu, quanSat, chienThuat) {
@@ -397,8 +486,11 @@
     let nguyHiem = 0;
     ungVien.satThuongGan = 0;
     ungVien.vaChamSom = chanTroi + 1;
+    ungVien.tiepXucDau = chanTroi + 1;
+    ungVien.satThuongBoGan = 0;
     for (const dan of cacDan) {
       let ganNhat = { khoangCach: Infinity, t: chanTroi };
+      let tiepXuc = Infinity;
       for (let moc = 1; moc < ungVien.duong.length; moc++) {
         const dau = ungVien.duong[moc - 1];
         const cuoi = ungVien.duong[moc];
@@ -407,6 +499,7 @@
         if (ketThuc <= batDau) continue;
         const tiepCan = tiepCanGanNhat(dau, cuoi, dan, batDau, ketThuc);
         if (tiepCan.khoangCach < ganNhat.khoangCach) ganNhat = tiepCan;
+        if (dan.doTinCay === 1) tiepXuc = Math.min(tiepXuc, tiepXucDauTien(dau, cuoi, dan, batDau, ketThuc));
       }
       const khoangDu = ganNhat.khoangCach - banKinhAnToan;
       const doKhanCap = 1 - ganNhat.t / (chanTroi + 0.8);
@@ -415,7 +508,10 @@
       // Chỉ đạn thật được dùng để loại các đường chắc chắn va chạm sớm.
       if (dan.doTinCay === 1 && ganNhat.khoangCach <= banKinhAnToan - 4) {
         ungVien.vaChamSom = Math.min(ungVien.vaChamSom, ganNhat.t);
-        if (ganNhat.t <= 0.6) ungVien.satThuongGan++;
+      }
+      if (dan.doTinCay === 1) {
+        ungVien.tiepXucDau = Math.min(ungVien.tiepXucDau, tiepXuc);
+        if (tiepXuc <= 0.6) ungVien.satThuongGan++;
       }
       if (khoangDu <= 0) diem -= (dan.doTinCay === 1 ? 2300 : 240) * doKhanCap * dan.doTinCay;
       else diem -= 160 * ruiRo * doKhanCap;
@@ -429,7 +525,12 @@
         bienAnToan + D.hangSo.banKinhXe - viTri.y,
         viTri.x + D.hangSo.banKinhXe - (D.hangSo.kichThuoc - bienAnToan),
         viTri.y + D.hangSo.banKinhXe - (D.hangSo.kichThuoc - bienAnToan), 0);
-      if (khoangRaNgoai > 0) diem -= (xe.hp <= 1 ? 1800 : 650) * buocDuDoan + khoangRaNgoai * 3 * buocDuDoan;
+      if (khoangRaNgoai > 0) {
+        diem -= (xe.hp <= 1 ? 1800 : 650) * buocDuDoan + khoangRaNgoai * 3 * buocDuDoan;
+        if (viTri.t <= 0.6 + 1e-6) ungVien.satThuongBoGan += D.hangSo.satThuongNgoaiVung * buocDuDoan;
+      }
+      const doiGocAnToan = chienThuat.beTac && doiThu.length === 1 && !chienThuat.khanCap;
+      if (chienThuat.rutLui && !doiGocAnToan && moc % 3 === 0) diem -= giaNguyCoViTri(viTri, tran, doiThu, true) * 0.12;
     }
 
     const cuoi = ungVien.duong[ungVien.duong.length - 1];
@@ -438,7 +539,8 @@
       const viTriDich = duDoanViTriDich(dich, quanSat[dich.id], chanTroi * 0.5, tran);
       const tam = khoangCach(cuoi, viTriDich);
       const thong = !D.doanBiChan(cuoi.x, cuoi.y, viTriDich.x, viTriDich.y, tran.tuong);
-      const tamAnToan = chienThuat.rutLui ? 240 : 190;
+      const phaBeTac = chienThuat.beTac && doiThu.length === 1 && chienThuat.diemDen?.loai === "di-vong" && !chienThuat.khanCap;
+      const tamAnToan = chienThuat.rutLui ? (phaBeTac ? 180 : 240) : 190;
       if (tam < tamAnToan && thong) diem -= (tamAnToan - tam) * (chienThuat.rutLui ? 2.8 : 1.8);
       // Phạt cả đường áp sát ở giữa, không chỉ vị trí cuối 1,5 giây.
       for (const moc of [3, 6, 9]) {
@@ -462,7 +564,12 @@
     }
     if (chienThuat.diemDen) {
       const den = chienThuat.diemDen;
-      diem += (khoangCach(xe, den) - khoangCach(cuoi, den)) * 2.2;
+      const dau = khoangCach(xe, den);
+      for (const [moc, trongSo] of [[1, 0.7], [3, 0.8], [6, 0.6], [9, 0.4], [15, 1]]) {
+        diem += (dau - khoangCach(ungVien.duong[moc], den)) * trongSo;
+      }
+      // Không hưởng trọn điểm đích xa nếu cứ chạy ngược hướng ở đầu chuỗi.
+      diem -= Math.max(0, khoangCach(ungVien.duong[3], den) - dau) * 2;
     }
     // Duy tri chuyen dong de doi thu khong de ban trung; on dinh lenh khi hai duong tuong duong.
     if (ungVien.ga === 0) diem -= 11;
@@ -473,30 +580,69 @@
     }
     ungVien.diem = diem;
     ungVien.nguyHiem = nguyHiem;
+    ungVien.nguyCoMatMang = ungVien.satThuongGan + ungVien.satThuongBoGan >= xe.hp - 1e-6 ? 1 : 0;
     return diem;
+  }
+
+  function bacAnToan(u) {
+    return [u.nguyCoMatMang, u.satThuongGan,
+      u.satThuongGan > 0 ? -Math.floor(Math.min(0.6, u.tiepXucDau) / 0.08) : 0];
+  }
+
+  function soAnToan(a, b) {
+    const aa = bacAnToan(a), bb = bacAnToan(b);
+    for (let i = 0; i < aa.length; i++) if (aa[i] !== bb[i]) return aa[i] - bb[i];
+    return 0;
   }
 
   D.AINguoiChoi = function (xe, tran) {
     xe.boNhoAI = xe.boNhoAI || {};
     const boNho = xe.boNhoAI;
-    if (Number.isFinite(boNho.hpTruoc) && xe.hp < boNho.hpTruoc - 0.1) boNho.rutLuiDen = tran.thoiGian + 3;
-    boNho.hpTruoc = xe.hp;
-    const rutLui = xe.hp / xe.hpToiDa <= 0.4 || tran.thoiGian < (boNho.rutLuiDen || 0);
     const doiThu = doiThuConSong(xe, tran);
+    const chienThuat = capNhatTrangThaiChienThuat(xe, tran, doiThu);
+    const { rutLui } = chienThuat;
     if (!Number.isFinite(boNho.lanTrungCuoi) || boNho.soTrungTruoc !== xe.soTrung) boNho.lanTrungCuoi = tran.thoiGian;
     boNho.soTrungTruoc = xe.soTrung;
     const beTac = doiThu.length === 1 && tran.thoiGian - boNho.lanTrungCuoi >= 7;
     const quanSat = theoDoiDoiThu(xe, tran, doiThu);
     const theoDoi = duDoanPhatBanGan(xe, tran, doiThu);
+    const giuHuong = [{ x: xe.x, y: xe.y, t: 0 }, { x: xe.x + (xe.vx || 0) * 0.5, y: xe.y + (xe.vy || 0) * 0.5, t: 0.5 }];
+    const khanCap = theoDoi.danhSach.some(d => d.doTinCay === 1 &&
+      tiepXucDauTien(giuHuong[0], giuHuong[1], d, 0, Math.min(0.45, d.ketThuc)) <= 0.45);
+    if (beTac && !khanCap && !chienThuat.ngoaiBo && tran.thoiGian - (boNho.lanMatMau ?? -Infinity) > 1.2) chienThuat.canRut = false;
     const mucTieu = chonMucTieu(xe, tran, doiThu, quanSat);
-    const diemDen = timDiemDiVong(xe, tran, mucTieu, doiThu, beTac);
-    const chuoi = taoChuoiNe(xe, diemDen, theoDoi.soDanThuc > 0 || doiThu.some(d => khoangCach(xe, d) < 320));
+    const diemDen = timDiemDiVong(xe, tran, mucTieu, doiThu, beTac, chienThuat);
+    const khoaDiemDen = diemDen ? `${diemDen.loai}:${Math.round(diemDen.x)}:${Math.round(diemDen.y)}` : "tu-do";
+    if (boNho.keHoach?.khoaDiemDen !== khoaDiemDen) boNho.keHoach = null;
+    const chuoi = taoChuoiNe(xe, diemDen, theoDoi.soDanThuc > 0 || doiThu.some(d => khoangCach(xe, d) < 320), khanCap);
+    const tiepTuc = phanKeHoachConLai(boNho.keHoach, tran.thoiGian);
+    if (tiepTuc) chuoi.push(tiepTuc);
     const cacUngVien = taoUngVien(xe, tran, chuoi);
     let chon = cacUngVien[0];
     for (const ungVien of cacUngVien) {
-      chamDiem(ungVien, xe, tran, theoDoi.danhSach, doiThu, mucTieu, quanSat, { rutLui, diemDen });
-      if (ungVien.satThuongGan < chon.satThuongGan ||
-          (ungVien.satThuongGan === chon.satThuongGan && ungVien.diem > chon.diem)) chon = ungVien;
+      chamDiem(ungVien, xe, tran, theoDoi.danhSach, doiThu, mucTieu, quanSat, { ...chienThuat, diemDen, beTac, khanCap });
+      if (soAnToan(ungVien, chon) < 0 || (soAnToan(ungVien, chon) === 0 && ungVien.diem > chon.diem)) chon = ungVien;
+    }
+    const giuLai = cacUngVien.find(u => u.loai === "tiep-tuc");
+    if (giuLai && soAnToan(giuLai, chon) === 0 && giuLai.diem >= chon.diem - 18 &&
+        giuLai.tiepXucDau > 0.15 && giuLai.biCan < 0.3) chon = giuLai;
+    let chuDongMoGoc = false;
+    if (beTac && diemDen?.loai === "di-vong" && !khanCap && tran.thoiGian - (boNho.lanMatMau ?? -Infinity) > 1.2 &&
+        khoangCach(xe, diemDen) - khoangCach(chon.duong.at(-1), diemDen) < 8) {
+      // Nếu điểm mềm vẫn khuyến khích đứng sau tường, thử đường mở góc
+      // đã qua đủ kiểm tra đạn thật, thân xe, bo và cự ly tối thiểu.
+      const moGoc = cacUngVien.filter(u => u.loai === "toi-diem" && soAnToan(u, chon) <= 0 && u.tiepXucDau > chanTroi && u.biCan < 0.15 &&
+        khoangCach(xe, diemDen) - khoangCach(u.duong.at(-1), diemDen) > 8 &&
+        u.duong.every(p => {
+          const bien = D.tinhVungAnToan(tran.thoiGian + p.t) + D.hangSo.banKinhXe;
+          return Math.min(p.x, p.y, D.hangSo.kichThuoc - p.x, D.hangSo.kichThuoc - p.y) >= bien &&
+            doiThu.every(d => khoangCach(p, d) >= 105 || !duongBanThong(p, d, tran));
+        })).sort((a, b) => b.diem - a.diem)[0];
+      if (moGoc) { chon = moGoc; chuDongMoGoc = true; }
+    }
+    if (chon.loai !== "tiep-tuc") {
+      boNho.soKeHoach = (boNho.soKeHoach || 0) + 1;
+      boNho.keHoach = { id: boNho.soKeHoach, batDau: tran.thoiGian, khoaDiemDen, chuoi: chon.chuoi.map(l => ({ ...l })) };
     }
     const gocNong = mucTieu ? Math.atan2(mucTieu.diemNgam.y - xe.y, mucTieu.diemNgam.x - xe.x) : xe.gocNong;
     const lenh = { ga: chon.ga, quay: chon.quay, gocNong, ban: !!mucTieu && mucTieu.thong && xe.thoiGianNap <= 0 };
@@ -512,7 +658,9 @@
     xe.boNhoAI.phanTich = {
       ungVien: cacUngVien.map(ungVien => ({ diem: ungVien.diem, duong: ungVien.duong.slice(1), nguyHiem: ungVien.nguyHiem,
         ga: ungVien.ga, quay: ungVien.quay, chuoiLenh: ungVien.chuoi,
-        satThuongGan: ungVien.satThuongGan, vaChamSom: ungVien.vaChamSom })),
+        satThuongGan: ungVien.satThuongGan, vaChamSom: ungVien.vaChamSom,
+        tiepXucDau: Number.isFinite(ungVien.tiepXucDau) ? ungVien.tiepXucDau : chanTroi + 1,
+        nguyCoMatMang: ungVien.nguyCoMatMang, loai: ungVien.loai })),
       duongChon: chon.duong.slice(1),
       mucTieu: mucTieu ? { id: mucTieu.dich.id, x: mucTieu.dich.x, y: mucTieu.dich.y } : null,
       diemNgam: mucTieu ? mucTieu.diemNgam : null,
@@ -523,6 +671,10 @@
       diem: chon.diem, phienBan: D.phienBanAI, rutLui, beTac,
       diemDen, kieuNgam: mucTieu?.kieuNgam || null,
       chuoiLenh: chon.chuoi, satThuongGan: chon.satThuongGan,
+      keHoachId: boNho.keHoach?.id, tuoiKeHoach: tran.thoiGian - (boNho.keHoach?.batDau || 0),
+      tiepTucKeHoach: chon.loai === "tiep-tuc", biLap: chienThuat.biLap,
+      canRut: chienThuat.canRut, khanCap, tiepXucDau: Number.isFinite(chon.tiepXucDau) ? chon.tiepXucDau : chanTroi + 1,
+      chuDongMoGoc,
       thoiDiemQuyetDinh: tran.thoiGian
     };
     return lenh;

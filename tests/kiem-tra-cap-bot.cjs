@@ -204,7 +204,7 @@ kiemTra('Tất cả cấp trả lệnh hữu hạn, không thay chỉ số vật
     if (cap >= 4) assert.equal(bot.boNhoAI.phanTichBot.soUngVien, D.cauHinhCapBot(cap).soUngVien);
     D.AINguoiChoi(tran.xe[0], tran);
     assert.equal(tran.xe[0].boNhoAI.phanTich.chanTroi, 1.5);
-    assert(tran.xe[0].boNhoAI.phanTich.ungVien.length >= 15 && tran.xe[0].boNhoAI.phanTich.ungVien.length <= 29);
+    assert(tran.xe[0].boNhoAI.phanTich.ungVien.length >= 15 && tran.xe[0].boNhoAI.phanTich.ungVien.length <= 48);
   }
 });
 
