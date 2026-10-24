@@ -41,13 +41,13 @@ Bảng trạng thái cho biết số xe còn sống, thời gian, tình trạng 
 - Nòng súng xoay độc lập với thân xe. Xe có thể vừa chạy, vừa ngắm theo hướng khác.
 - Đạn bay thẳng, biến mất khi chạm tường, chướng ngại vật hoặc một xe. Đạn không nảy lại.
 - Sau **45 giây**, vùng an toàn bắt đầu thu hẹp và dừng hẳn ở **360 × 360**, đủ lối di chuyển và đấu súng dù khu giữa trống hoặc có vật cản nhỏ. Bảng trạng thái sẽ báo **Bo cuối · Đã dừng thu**. Xe ở ngoài vùng an toàn vẫn mất HP dần, kể cả trong chế độ 1 hit. Xe ở trong bo cuối tiếp tục giao chiến bình thường, không bị ép vào một điểm; trận có thể kéo dài khi các AI phòng thủ tốt.
-- Khi chỉ còn một xe, xe đó thắng. Nếu không còn xe nào, trận hòa. Nếu xe bạn bị loại sớm, bạn vẫn có thể xem các bot hoàn thành trận.
+- Xe bạn bị loại thì trận dừng ngay và tính thua, kể cả bị loại đồng thời với các xe khác. Xe bạn sống sót cuối cùng thì thắng. Sau 300 giây còn xe bạn và đối thủ thì hòa.
 
 ## AI của xe bạn hoạt động thế nào?
 
 AI được tính lại mỗi **0,1 giây**. Vật lý chạy bằng bước cố định **1/60 giây** để đạn, va chạm và tốc độ xem hoạt động nhất quán.
 
-Mỗi lần quyết định, xe bạn đọc trạng thái trận, theo dõi đạn và thử **15 hành động**: tiến / dừng / lùi kết hợp với năm mức rẽ trái, đi thẳng hoặc rẽ phải. Với mỗi cách, chương trình dự đoán đường đi trong khoảng **1,5 giây** rồi chấm điểm:
+Bản **AI chiến thuật 2** giữ 15 hành động cơ bản và thêm đường đổi hướng/đổi chiều khi có đạn hoặc đối thủ ở gần, cùng đường tới góc vật cản khi cần. Tổng cộng **15–29 phương án**, mỗi phương án dự đoán **1,5 giây**. Chuỗi hành động được xem xét lại sau mỗi 0,1 giây; không buộc xe thực hiện hết khi xuất hiện nguy hiểm mới. Các tiêu chí gồm:
 
 1. Nguy cơ trúng đạn và mức an toàn của đường đi.
 2. Khoảng cách tới tường, chướng ngại vật và vùng an toàn.
@@ -70,6 +70,17 @@ Các thông số tăng dần theo từng cấp, gồm độ trễ phản ứng k
 Độ khó đến từ quyết định của AI. Mọi xe dùng cùng luật HP của chế độ, sát thương, giới hạn tốc độ và thời gian nạp đạn. Cấp bot không thay chương trình AI của xe bạn. Kết quả từng trận vẫn phụ thuộc vị trí, số đối thủ và diễn biến ngẫu nhiên; một cấp cao hơn không được bảo đảm thắng mọi trận.
 
 Lập trình viên có thể xem cấu hình bằng `DauTruong.cauHinhCapBot(cap)` và chọn cấp khi tạo trận qua `capBot`. Cấu hình có các trường `trePhanUng`, `saiSoNgam`, `tyLeDonDau`, `chanTroi` và `soUngVien`.
+
+### Bốn cải tiến của AI chiến thuật 2
+
+- **Giữ khoảng cách và bảo toàn mạng:** xét phát bắn có thể sắp xảy ra, tránh đi vào cự ly quá gần trên đường di chuyển. Khi còn tối đa 40% HP hoặc vừa mất máu đáng kể, ưu tiên rút lui, vật che và tránh nhiều hướng bắn. Phạt đi ngoài bo mạnh hơn khi chỉ còn 1 HP.
+- **Né đạn nhiều bước:** thử rẽ rồi đổi bên, tiến rồi lùi và quay tại chỗ rồi đi/phanh. Đường dự kiến trúng ít đạn thật hơn trong 0,6 giây đầu được ưu tiên trước điểm vị trí hoặc cơ hội bắn. Phát bắn giả thuyết có trọng số thấp hơn đạn thật để xe vẫn tìm được góc tấn công.
+- **Phá bế tắc:** dùng đồ thị các góc vật cản có khoảng đệm đủ cho thân xe. Khi đấu tay đôi quá 7 giây không ghi thêm phát trúng, tìm điểm tiếp cận mới và tiếp tục kiểm tra đạn, tường, bo trước khi di chuyển.
+- **Ngắm theo chuyển động:** quan sát vận tốc và độ quay, so dự đoán cũ với vị trí đối thủ đã thực sự tới. Chỉ chọn mô hình chạy vòng khi sai số quan sát của nó thấp hơn mô hình đi thẳng; vẫn xét điểm dừng trước tường và tăng ưu tiên mục tiêu ít máu.
+
+AI chỉ đọc trạng thái hiện tại và ký ức quan sát của chính xe, không đọc lệnh hay bộ nhớ của đối thủ. Không đổi chỉ số HP/tốc độ/sát thương và AI của bot.
+
+Log mới ghi `cauHinh.phienBanAI`, trạng thái rút lui/bế tắc, kiểu ngắm, điểm đi vòng, thời điểm quyết định, chuỗi lệnh và số đạn thật có thể trúng sớm. Vẫn đọc được log cũ. Điểm nguy hiểm là điểm đánh giá, không phải xác suất; dự đoán không bảo đảm xe luôn thoát được đạn.
 
 ## Thay AI của xe bạn
 
@@ -147,6 +158,9 @@ node tests/kiem-tra.cjs
 node tests/kiem-tra-giao-dien.cjs
 node tests/kiem-tra-cap-bot.cjs
 node tests/kiem-tra-ban-do.cjs
+node tests/kiem-tra-chien-thuat.cjs
+node tests/kiem-tra-nhat-ky.cjs
+node tests/kiem-tra-tu-luu.cjs
 ```
 
 Không cần cài thêm gói thư viện. Bài thứ nhất kiểm tra vật lý, lịch quyết định AI, đường dự đoán, ngắm đón đầu, tạo trận ngẫu nhiên, các đợt đổi chiến thuật bot và các trận nhiều xe. Hạt giống cố định chỉ dùng trong bài kiểm tra để tái hiện lỗi. Bài thứ hai thực thi mã giao diện bằng các đối tượng DOM/Canvas giả lập để kiểm tra nút, thiết lập cấp độ, tốc độ, phím tắt, tạm dừng, toàn màn hình, kích thước sân theo cửa sổ và xác nhận Đặt lại/Đấu lại tạo trận mới. Bài thứ ba kiểm tra cấu hình và các hành vi chiến đấu theo cấp bot. Bài thứ tư kiểm tra bản đồ ngẫu nhiên qua nhiều hạt giống, khoảng trống xuất phát, lối đi nối thông và bo cuối. Bài kiểm tra giả lập không xác minh bố cục hoặc cách hiển thị trong trình duyệt thật.

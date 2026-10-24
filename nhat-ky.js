@@ -7,11 +7,15 @@
     const p = xe.boNhoAI.phanTich;
     return { id: xe.id, ten: xe.ten, mau: xe.mau, laNguoiChoi: xe.laNguoiChoi,
       x: xe.x, y: xe.y, vx: xe.vx, vy: xe.vy, goc: xe.goc, gocNong: xe.gocNong,
-      hp: xe.hp, conSong: xe.conSong, soBan: xe.soBan, soTrung: xe.soTrung, soHa: xe.soHa,
+      hp: xe.hp, thoiGianNap: xe.thoiGianNap, conSong: xe.conSong, soBan: xe.soBan, soTrung: xe.soTrung, soHa: xe.soHa,
       lenh: { ...xe.lenh }, phanTich: p ? { lyDo: p.lyDo, nguyHiem: p.nguyHiem,
         mucTieu: p.mucTieu, diemNgam: p.diemNgam, soDanTheoDoi: p.soDanTheoDoi,
-        chanTroi: p.chanTroi, diem: p.diem,
-        ungVien: p.ungVien.map(u => ({ diem: u.diem, nguyHiem: u.nguyHiem })), duongChon: p.duongChon } : null };
+        chanTroi: p.chanTroi, diem: p.diem, phienBan: p.phienBan,
+        rutLui: p.rutLui, beTac: p.beTac, diemDen: p.diemDen, kieuNgam: p.kieuNgam,
+        chuoiLenh: p.chuoiLenh, satThuongGan: p.satThuongGan, thoiDiemQuyetDinh: p.thoiDiemQuyetDinh,
+        ungVien: p.ungVien.map(u => ({ diem: u.diem, nguyHiem: u.nguyHiem,
+          ga: u.ga, quay: u.quay, chuoiLenh: u.chuoiLenh, satThuongGan: u.satThuongGan,
+          vaChamSom: u.vaChamSom })), duongChon: p.duongChon } : null };
   }
   D.khoiTaoNhatKy = tran => {
     tran.nhatKy = { suKien: [], satThuong: [], dienBien: [], mocCuoi: -1 };
@@ -45,7 +49,8 @@
   D.xuatNhatKy = tran => {
     const log = saoChep({ dinhDang: 'tank-lab-log', phienBan: 1,
       taoLuc: new Date().toISOString(), hatGiong: tran.hatGiong,
-      cauHinh: { capBot: tran.capBot, hangSo: D.hangSo, tuong: tran.tuong },
+      cauHinh: { capBot: tran.capBot, phienBanAI: D.layAINguoiChoi?.() === D.AINguoiChoi ? D.phienBanAI : 'tuy-chinh',
+        hangSo: D.hangSo, tuong: tran.tuong },
       thoiGian: tran.thoiGian, ketThuc: tran.ketThuc, ketQua: tran.ketQua, lyDoKetThuc: tran.lyDoKetThuc,
       nguoiThang: tran.nguoiThang ? tran.nguoiThang.ten : null,
       xeCuoi: tran.xe.map(chupXe), suKien: tran.nhatKy.suKien,

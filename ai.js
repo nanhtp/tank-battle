@@ -10,6 +10,7 @@
   const chanTroi = 1.5;
   const buocDuDoan = 0.1;
   let aiThayThe = null;
+  D.phienBanAI = "chien-thuat-2";
 
   const kep = (giaTri, nhoNhat, lonNhat) => Math.max(nhoNhat, Math.min(lonNhat, giaTri));
   const binhPhuong = giaTri => giaTri * giaTri;
@@ -123,8 +124,28 @@
       moi[dich.id] = {
         x: dich.x, y: dich.y, t: tran.thoiGian,
         vx: Number.isFinite(dich.vx) ? dich.vx : vxQuanSat,
-        vy: Number.isFinite(dich.vy) ? dich.vy : vyQuanSat
+        vy: Number.isFinite(dich.vy) ? dich.vy : vyQuanSat,
+        soLan: (lanTruoc?.soLan || 0) + 1, tocDoQuay: 0,
+        danhGia: lanTruoc?.danhGia || { soMau: 0, thang: 0, cong: 0, cho: [] }
       };
+      const q = moi[dich.id];
+      // So dự đoán cũ với vị trí thật khi đạn lẽ ra đã tới đích.
+      // Chỉ dùng kết quả đã xảy ra để chọn mô hình ngắm cho lần sau.
+      q.danhGia.cho = q.danhGia.cho.filter(mau => {
+        if (mau.t > tran.thoiGian) return true;
+        if (tran.thoiGian - mau.t < 0.16) {
+          const tiLe = q.danhGia.soMau ? 0.25 : 1;
+          q.danhGia.thang += (khoangCach(dich, mau.thang) - q.danhGia.thang) * tiLe;
+          q.danhGia.cong += (khoangCach(dich, mau.cong) - q.danhGia.cong) * tiLe;
+          q.danhGia.soMau++;
+        }
+        return false;
+      });
+      if (lanTruoc && dt > 0.001 && dt < 0.35 &&
+          Math.hypot(q.vx, q.vy) > 35 && Math.hypot(lanTruoc.vx, lanTruoc.vy) > 35) {
+        const quay = kep(D.chuanHoaGoc(Math.atan2(q.vy, q.vx) - Math.atan2(lanTruoc.vy, lanTruoc.vx)) / dt, -2.7, 2.7);
+        q.tocDoQuay = quay * 0.7 + (lanTruoc.tocDoQuay || 0) * 0.3;
+      }
     }
     boNho.quanSatDoiThu = moi;
     return moi;
@@ -171,15 +192,51 @@
     let totNhat = null;
     for (const dich of doiThu) {
       const duLieu = quanSat[dich.id];
-      const t = kep(thoiGianDonDau(xe, dich, duLieu.vx, duLieu.vy), 0, 3);
-      const diemNgam = duDoanViTriDich(dich, duLieu, t, tran);
+      let t = kep(thoiGianDonDau(xe, dich, duLieu.vx, duLieu.vy), 0, 3);
+      let diemNgam = duDoanViTriDich(dich, duLieu, t, tran);
+      const diemThang = diemNgam;
+      const thoiGianThang = t;
+      const dangQuay = duLieu.soLan >= 3 && Math.abs(duLieu.tocDoQuay) > 0.25;
+      if (dangQuay) {
+        // Chỉ suy ra độ cong từ vận tốc đã quan sát; không đọc lệnh của bot.
+        for (let lap = 0; lap < 3; lap++) {
+          let viTri = { x: dich.x, y: dich.y, goc: Math.atan2(duLieu.vy, duLieu.vx) };
+          const lenh = { ga: kep(Math.hypot(duLieu.vx, duLieu.vy) / D.hangSo.tocDoXe, 0, 1),
+            quay: duLieu.tocDoQuay / D.hangSo.tocDoQuay };
+          for (let daDi = 0; daDi < t - 1e-6;) {
+            const dt = Math.min(1 / 30, t - daDi);
+            viTri = D.tinhBuocXe(viTri, lenh, dt, tran.tuong); daDi += dt;
+          }
+          diemNgam = { x: viTri.x, y: viTri.y };
+          t = kep((khoangCach(xe, diemNgam) - 25) / D.hangSo.tocDoDan, 0, 3);
+        }
+      }
+      const dg = duLieu.danhGia;
+      if (dangQuay && (dg.cho.length === 0 || tran.thoiGian - dg.cho.at(-1).luc >= 0.19)) {
+        dg.cho.push({ luc: tran.thoiGian, t: tran.thoiGian + thoiGianThang, thang: diemThang,
+          cong: duDoanCongTaiThoiDiem(dich, duLieu, thoiGianThang, tran) });
+      }
+      const dungDuongCong = dangQuay && dg.soMau >= 3 && dg.cong < dg.thang * 0.85;
+      if (!dungDuongCong) diemNgam = diemThang;
       const thong = duongBanThong(xe, diemNgam, tran);
       const tam = khoangCach(xe, dich);
-      const diem = (thong ? 5 : 0) - tam / 220 + (1 - dich.hp / dich.hpToiDa) * 1.6
-        + (xe.boNhoAI.mucTieuId === dich.id ? 0.32 : 0);
-      if (!totNhat || diem > totNhat.diem) totNhat = { dich, diemNgam, thong, diem };
+      const diem = (thong ? 5 : 0) - tam / 240 + (1 - dich.hp / dich.hpToiDa) * 2.6
+        + (xe.boNhoAI.mucTieuId === dich.id ? 0.65 : 0);
+      if (!totNhat || diem > totNhat.diem) totNhat = { dich, diemNgam, thong, diem,
+        kieuNgam: dungDuongCong ? "theo-duong-cong" : Math.hypot(duLieu.vx, duLieu.vy) < 15 ? "dich-dang-dung" : "don-dau-thang" };
     }
     return totNhat;
+  }
+
+  function duDoanCongTaiThoiDiem(dich, quanSat, t, tran) {
+    let viTri = { x: dich.x, y: dich.y, goc: Math.atan2(quanSat.vy, quanSat.vx) };
+    const lenh = { ga: kep(Math.hypot(quanSat.vx, quanSat.vy) / D.hangSo.tocDoXe, 0, 1),
+      quay: quanSat.tocDoQuay / D.hangSo.tocDoQuay };
+    for (let daDi = 0; daDi < t - 1e-6;) {
+      const dt = Math.min(1 / 30, t - daDi);
+      viTri = D.tinhBuocXe(viTri, lenh, dt, tran.tuong); daDi += dt;
+    }
+    return { x: viTri.x, y: viTri.y };
   }
 
   function khoangTrongDenTuong(x, y, tran) {
@@ -192,33 +249,154 @@
     return trong;
   }
 
-  function taoUngVien(xe, tran) {
+  function taoUngVien(xe, tran, chuoiLenh = []) {
     const ungVien = [];
-    for (const ga of [-1, 0, 1]) {
-      for (const quay of [-1, -0.5, 0, 0.5, 1]) {
-        let xeGiaLap = { ...xe };
+    const cacChuoi = [];
+    for (const ga of [-1, 0, 1]) for (const quay of [-1, -0.5, 0, 0.5, 1]) cacChuoi.push([{ ga, quay, den: chanTroi }]);
+    cacChuoi.push(...chuoiLenh);
+    for (const chuoi of cacChuoi) {
+        const { ga, quay } = chuoi[0];
+        let xeGiaLap = { x: xe.x, y: xe.y, goc: xe.goc };
         const duong = [{ x: xe.x, y: xe.y, t: 0 }];
         let biCan = 0;
         for (let buoc = 1; buoc <= Math.round(chanTroi / buocDuDoan); buoc++) {
           // Cung buoc 1/60 giay voi game. Buoc 0.1s mot lan lam duong re bi lech.
-          const viTriCu = xeGiaLap;
           for (let buocNho = 0; buocNho < 6; buocNho++) {
-            xeGiaLap = { ...xeGiaLap, ...D.tinhBuocXe(xeGiaLap, { ga, quay }, buocDuDoan / 6, tran.tuong) };
+            const t = (buoc - 1) * buocDuDoan + buocNho * buocDuDoan / 6;
+            const lenh = chuoi.find(l => t < l.den - 1e-6) || chuoi.at(-1);
+            const cu = xeGiaLap;
+            xeGiaLap = D.tinhBuocXe(xeGiaLap, lenh, buocDuDoan / 6, tran.tuong);
+            if (lenh.ga !== 0 && khoangCach(cu, xeGiaLap) < D.hangSo.tocDoXe * buocDuDoan / 6 * 0.3) biCan += buocDuDoan / 6;
           }
           const viTri = xeGiaLap;
-          if (ga !== 0 && Math.hypot(viTri.x - viTriCu.x, viTri.y - viTriCu.y) < D.hangSo.tocDoXe * buocDuDoan * 0.3) biCan += buocDuDoan;
           duong.push({ x: viTri.x, y: viTri.y, t: buoc * buocDuDoan });
         }
-        ungVien.push({ ga, quay, duong, biCan, diem: 0, nguyHiem: 0 });
-      }
+        ungVien.push({ ga, quay, chuoi, duong, biCan, diem: 0, nguyHiem: 0 });
     }
     return ungVien;
   }
 
-  function chamDiem(ungVien, xe, tran, cacDan, doiThu, mucTieu, quanSat) {
+  function duDoanPhatBanGan(xe, tran, doiThu) {
+    const theoDoi = theoDoiDan(xe, tran, doiThu, chanTroi, false);
+    for (const dich of doiThu) {
+      const tam = khoangCach(xe, dich);
+      const tre = Math.max(1 / 60, (dich.thoiGianNap || 0) - 1 / 60);
+      if (tam > 650 || tre > 0.8 || !duongBanThong(dich, xe, tran)) continue;
+      const gocDenTa = Math.atan2(xe.y - dich.y, xe.x - dich.x);
+      const lechNong = Math.abs(D.chuanHoaGoc(gocDenTa - dich.gocNong));
+      const thoiGianBay = Math.max(0, (tam - 25) / D.hangSo.tocDoDan);
+      const gocDon = Math.atan2(xe.y + (xe.vy || 0) * thoiGianBay - dich.y,
+        xe.x + (xe.vx || 0) * thoiGianBay - dich.x);
+      // Nòng có thể đổi hướng ngay trong game: xét cả ngắm hiện tại và đón đầu.
+      const cacGoc = [gocDon];
+      if (lechNong < 0.7 && Math.abs(D.chuanHoaGoc(dich.gocNong - gocDon)) > 0.05) cacGoc.push(dich.gocNong);
+      for (const goc of cacGoc) {
+        const dan = { x: dich.x + (dich.vx || 0) * tre + Math.cos(goc) * 25,
+          y: dich.y + (dich.vy || 0) * tre + Math.sin(goc) * 25,
+          vx: Math.cos(goc) * D.hangSo.tocDoDan, vy: Math.sin(goc) * D.hangSo.tocDoDan,
+          tuoi: 0, batDau: tre, doTinCay: tam < 200 && tre < 0.25 ? 0.65 : 0.38 };
+        dan.ketThuc = Math.min(chanTroi, tre + thoiGianDanConBay(dan, tran));
+        theoDoi.danhSach.push(dan);
+      }
+    }
+    return theoDoi;
+  }
+
+  // Đồ thị các góc vật cản, có khoảng đệm bằng bán kính xe. Tìm đường
+  // tới điểm mở góc bắn; không buộc xe lao vào vị trí đối thủ.
+  function timDiemDiVong(xe, tran, mucTieu, doiThu, beTac) {
+    if (!mucTieu) return null;
+    const boNho = xe.boNhoAI;
+    const biChe = !duongBanThong(xe, mucTieu.dich, tran);
+    if (!biChe && !beTac) { boNho.diVong = null; return null; }
+    if (boNho.diVong && boNho.diVong.dichId === mucTieu.dich.id &&
+        tran.thoiGian < boNho.diVong.hetHan && khoangCach(xe, boNho.diVong) > 22 &&
+        duongDiThong(xe, boNho.diVong, tran)) return boNho.diVong;
+    const dem = D.hangSo.banKinhXe + 14;
+    const bien = D.tinhVungAnToan(tran.thoiGian + 2) + dem;
+    const hopLe = p => p.x > bien && p.y > bien && p.x < D.hangSo.kichThuoc - bien && p.y < D.hangSo.kichThuoc - bien &&
+      khoangTrongDenTuong(p.x, p.y, tran) >= 10;
+    const nut = [{ x: xe.x, y: xe.y }];
+    for (const w of tran.tuong) for (const x of [w.x - dem, w.x + w.rong + dem])
+      for (const y of [w.y - dem, w.y + w.cao + dem]) if (hopLe({ x, y })) nut.push({ x, y });
+    if (beTac) for (let i = 0; i < 12; i++) {
+      const goc = i * Math.PI / 6;
+      const p = { x: mucTieu.dich.x + Math.cos(goc) * 250, y: mucTieu.dich.y + Math.sin(goc) * 250 };
+      if (hopLe(p)) nut.push(p);
+    }
+    // Cho phép đi qua nhiều góc đối với các dãy tường.
+    const diem = nut.map(() => Infinity), truoc = nut.map(() => -1), daXet = new Set();
+    diem[0] = 0;
+    for (let lap = 0; lap < nut.length; lap++) {
+      let i = -1;
+      for (let j = 0; j < nut.length; j++) if (!daXet.has(j) && (i < 0 || diem[j] < diem[i])) i = j;
+      if (i < 0 || !Number.isFinite(diem[i])) break;
+      daXet.add(i);
+      for (let j = 1; j < nut.length; j++) if (!daXet.has(j) && duongDiThong(nut[i], nut[j], tran)) {
+        const moi = diem[i] + khoangCach(nut[i], nut[j]);
+        if (moi < diem[j]) { diem[j] = moi; truoc[j] = i; }
+      }
+    }
+    let chon = -1, diemChon = Infinity;
+    for (let j = 1; j < nut.length; j++) {
+      if (!duongBanThong(nut[j], mucTieu.dich, tran) || !Number.isFinite(diem[j])) continue;
+      if (beTac && !biChe) {
+        const gocCu = Math.atan2(xe.y - mucTieu.dich.y, xe.x - mucTieu.dich.x);
+        const gocMoi = Math.atan2(nut[j].y - mucTieu.dich.y, nut[j].x - mucTieu.dich.x);
+        if (Math.abs(D.chuanHoaGoc(gocMoi - gocCu)) < 0.5 || khoangCach(xe, nut[j]) < 70) continue;
+      }
+      const tam = khoangCach(nut[j], mucTieu.dich);
+      const loThien = doiThu.filter(d => khoangCach(nut[j], d) < 380 && duongBanThong(nut[j], d, tran)).length;
+      const gia = diem[j] + Math.max(0, 170 - tam) * 3 + Math.max(0, loThien - 1) * 90;
+      if (gia < diemChon) { diemChon = gia; chon = j; }
+    }
+    if (chon < 0) return null;
+    while (truoc[chon] > 0) chon = truoc[chon];
+    boNho.diVong = { ...nut[chon], dichId: mucTieu.dich.id, hetHan: tran.thoiGian + 2 };
+    return boNho.diVong;
+  }
+
+  function duongDiThong(a, b, tran) {
+    const r = D.hangSo.banKinhXe + 5;
+    return !tran.tuong.some(w => thoiGianGapHop(a.x, a.y, b.x - a.x, b.y - a.y,
+      w.x - r, w.y - r, w.x + w.rong + r, w.y + w.cao + r) <= 1);
+  }
+
+  function taoChuoiNe(xe, diemDen, coNguyCo) {
+    const cacChuoi = [];
+    if (coNguyCo) for (const ga of [-1, 1]) for (const quay of [-1, 0, 1]) {
+      cacChuoi.push([{ ga, quay, den: 0.3 }, { ga, quay: -quay, den: chanTroi }]);
+      cacChuoi.push([{ ga, quay, den: 0.3 }, { ga: -ga, quay, den: chanTroi }]);
+    }
+    if (diemDen) for (const ga of [-1, 1]) {
+      const goc = Math.atan2(diemDen.y - xe.y, diemDen.x - xe.x) + (ga < 0 ? Math.PI : 0);
+      const lech = D.chuanHoaGoc(goc - xe.goc);
+      // Chọn hướng truyền động cần quay ít hơn; tránh đổi tiến/lùi mỗi
+      // chu kỳ chỉ để hứa sẽ tới điểm đến trong phần cuối dự đoán.
+      if (Math.abs(lech) > Math.PI / 2) continue;
+      const quay = Math.sign(lech), den = kep(Math.abs(lech) / D.hangSo.tocDoQuay, 0.1, 1.3);
+      cacChuoi.push([{ ga, quay, den }, { ga, quay: 0, den: chanTroi }]);
+      // Điểm đến gần cần phanh đúng chỗ; chỉ giữ ga suốt 1,5 giây sẽ
+      // khiến xe chọn đứng yên vì mọi đường còn lại đều vượt quá góc tường.
+      // Căn mốc đổi lệnh theo chu kỳ 0,1 giây để không quay quá góc
+      // rồi lắc qua lại khi thời gian cần quay nhỏ hơn một chu kỳ.
+      const thoiGianQuay = Math.abs(lech) < 0.08 ? 0 : Math.ceil(Math.abs(lech) / D.hangSo.tocDoQuay / 0.1) * 0.1;
+      const toiDiem = Math.min(chanTroi, thoiGianQuay + khoangCach(xe, diemDen) / D.hangSo.tocDoXe);
+      const chuoiDen = [];
+      if (thoiGianQuay > 0) chuoiDen.push({ ga: 0, quay: lech / (thoiGianQuay * D.hangSo.tocDoQuay), den: thoiGianQuay });
+      if (toiDiem > thoiGianQuay) chuoiDen.push({ ga, quay: 0, den: toiDiem });
+      chuoiDen.push({ ga: 0, quay: 0, den: chanTroi });
+      cacChuoi.push(chuoiDen);
+    }
+    return cacChuoi;
+  }
+
+  function chamDiem(ungVien, xe, tran, cacDan, doiThu, mucTieu, quanSat, chienThuat) {
     const banKinhAnToan = D.hangSo.banKinhXe + D.hangSo.banKinhDan + 6;
     let diem = -ungVien.biCan * 120;
     let nguyHiem = 0;
+    ungVien.satThuongGan = 0;
+    ungVien.vaChamSom = chanTroi + 1;
     for (const dan of cacDan) {
       let ganNhat = { khoangCach: Infinity, t: chanTroi };
       for (let moc = 1; moc < ungVien.duong.length; moc++) {
@@ -234,7 +412,12 @@
       const doKhanCap = 1 - ganNhat.t / (chanTroi + 0.8);
       const ruiRo = kep(Math.exp(-Math.max(0, khoangDu) / 24) * dan.doTinCay, 0, 1);
       nguyHiem = Math.max(nguyHiem, ruiRo);
-      if (khoangDu <= 0) diem -= 2300 * doKhanCap * dan.doTinCay;
+      // Chỉ đạn thật được dùng để loại các đường chắc chắn va chạm sớm.
+      if (dan.doTinCay === 1 && ganNhat.khoangCach <= banKinhAnToan - 4) {
+        ungVien.vaChamSom = Math.min(ungVien.vaChamSom, ganNhat.t);
+        if (ganNhat.t <= 0.6) ungVien.satThuongGan++;
+      }
+      if (khoangDu <= 0) diem -= (dan.doTinCay === 1 ? 2300 : 240) * doKhanCap * dan.doTinCay;
       else diem -= 160 * ruiRo * doKhanCap;
     }
 
@@ -246,7 +429,7 @@
         bienAnToan + D.hangSo.banKinhXe - viTri.y,
         viTri.x + D.hangSo.banKinhXe - (D.hangSo.kichThuoc - bienAnToan),
         viTri.y + D.hangSo.banKinhXe - (D.hangSo.kichThuoc - bienAnToan), 0);
-      if (khoangRaNgoai > 0) diem -= (210 + khoangRaNgoai * 2.2) * buocDuDoan;
+      if (khoangRaNgoai > 0) diem -= (xe.hp <= 1 ? 1800 : 650) * buocDuDoan + khoangRaNgoai * 3 * buocDuDoan;
     }
 
     const cuoi = ungVien.duong[ungVien.duong.length - 1];
@@ -254,16 +437,32 @@
     for (const dich of doiThu) {
       const viTriDich = duDoanViTriDich(dich, quanSat[dich.id], chanTroi * 0.5, tran);
       const tam = khoangCach(cuoi, viTriDich);
-      if (tam < 110) diem -= (110 - tam) * 1.2;
+      const thong = !D.doanBiChan(cuoi.x, cuoi.y, viTriDich.x, viTriDich.y, tran.tuong);
+      const tamAnToan = chienThuat.rutLui ? 240 : 190;
+      if (tam < tamAnToan && thong) diem -= (tamAnToan - tam) * (chienThuat.rutLui ? 2.8 : 1.8);
+      // Phạt cả đường áp sát ở giữa, không chỉ vị trí cuối 1,5 giây.
+      for (const moc of [3, 6, 9]) {
+        const viTri = ungVien.duong[moc];
+        const xDich = dich.x + quanSat[dich.id].vx * Math.min(viTri.t, 0.5);
+        const yDich = dich.y + quanSat[dich.id].vy * Math.min(viTri.t, 0.5);
+        const tamGiua = Math.hypot(viTri.x - xDich, viTri.y - yDich);
+        if (tamGiua < 150 && thong) diem -= (150 - tamGiua) * 1.2;
+      }
+      if (chienThuat.rutLui && !thong && khoangCach(xe, dich) < 500) diem += 18;
       if (tam < 420 && !D.doanBiChan(cuoi.x, cuoi.y, viTriDich.x, viTriDich.y, tran.tuong)) soDichTrongTam++;
     }
-    diem -= Math.max(0, soDichTrongTam - 1) * 8;
+    diem -= Math.max(0, soDichTrongTam - 1) * (chienThuat.rutLui ? 65 : 32);
     if (mucTieu) {
       const tamHienTai = khoangCach(xe, mucTieu.dich);
       const tamMoi = khoangCach(cuoi, mucTieu.dich);
-      diem -= Math.abs(tamMoi - 280) * 0.055;
-      if (tamHienTai > 340) diem += (tamHienTai - tamMoi) * 0.09;
-      if (!D.doanBiChan(cuoi.x, cuoi.y, mucTieu.diemNgam.x, mucTieu.diemNgam.y, tran.tuong)) diem += 23;
+      const tamMuon = chienThuat.rutLui ? 340 : 280;
+      diem -= Math.abs(tamMoi - tamMuon) * 0.075;
+      if (tamHienTai > tamMuon + 60 && !chienThuat.diemDen) diem += (tamHienTai - tamMoi) * 0.09;
+      if (!D.doanBiChan(cuoi.x, cuoi.y, mucTieu.diemNgam.x, mucTieu.diemNgam.y, tran.tuong)) diem += chienThuat.rutLui ? 9 : 27;
+    }
+    if (chienThuat.diemDen) {
+      const den = chienThuat.diemDen;
+      diem += (khoangCach(xe, den) - khoangCach(cuoi, den)) * 2.2;
     }
     // Duy tri chuyen dong de doi thu khong de ban trung; on dinh lenh khi hai duong tuong duong.
     if (ungVien.ga === 0) diem -= 11;
@@ -279,15 +478,25 @@
 
   D.AINguoiChoi = function (xe, tran) {
     xe.boNhoAI = xe.boNhoAI || {};
+    const boNho = xe.boNhoAI;
+    if (Number.isFinite(boNho.hpTruoc) && xe.hp < boNho.hpTruoc - 0.1) boNho.rutLuiDen = tran.thoiGian + 3;
+    boNho.hpTruoc = xe.hp;
+    const rutLui = xe.hp / xe.hpToiDa <= 0.4 || tran.thoiGian < (boNho.rutLuiDen || 0);
     const doiThu = doiThuConSong(xe, tran);
+    if (!Number.isFinite(boNho.lanTrungCuoi) || boNho.soTrungTruoc !== xe.soTrung) boNho.lanTrungCuoi = tran.thoiGian;
+    boNho.soTrungTruoc = xe.soTrung;
+    const beTac = doiThu.length === 1 && tran.thoiGian - boNho.lanTrungCuoi >= 7;
     const quanSat = theoDoiDoiThu(xe, tran, doiThu);
-    const theoDoi = theoDoiDan(xe, tran, doiThu);
+    const theoDoi = duDoanPhatBanGan(xe, tran, doiThu);
     const mucTieu = chonMucTieu(xe, tran, doiThu, quanSat);
-    const cacUngVien = taoUngVien(xe, tran);
+    const diemDen = timDiemDiVong(xe, tran, mucTieu, doiThu, beTac);
+    const chuoi = taoChuoiNe(xe, diemDen, theoDoi.soDanThuc > 0 || doiThu.some(d => khoangCach(xe, d) < 320));
+    const cacUngVien = taoUngVien(xe, tran, chuoi);
     let chon = cacUngVien[0];
     for (const ungVien of cacUngVien) {
-      chamDiem(ungVien, xe, tran, theoDoi.danhSach, doiThu, mucTieu, quanSat);
-      if (ungVien.diem > chon.diem) chon = ungVien;
+      chamDiem(ungVien, xe, tran, theoDoi.danhSach, doiThu, mucTieu, quanSat, { rutLui, diemDen });
+      if (ungVien.satThuongGan < chon.satThuongGan ||
+          (ungVien.satThuongGan === chon.satThuongGan && ungVien.diem > chon.diem)) chon = ungVien;
     }
     const gocNong = mucTieu ? Math.atan2(mucTieu.diemNgam.y - xe.y, mucTieu.diemNgam.x - xe.x) : xe.gocNong;
     const lenh = { ga: chon.ga, quay: chon.quay, gocNong, ban: !!mucTieu && mucTieu.thong && xe.thoiGianNap <= 0 };
@@ -295,11 +504,15 @@
     xe.boNhoAI.lenhTruoc = { ga: chon.ga, quay: chon.quay };
     const dungYen = cacUngVien.find(ungVien => ungVien.ga === 0 && ungVien.quay === 0);
     let lyDo = "Giữ khoảng cách, tìm góc bắn thoáng";
+    if (diemDen) lyDo = beTac ? "Đổi góc tiếp cận để phá bế tắc" : "Đi vòng vật cản để mở góc bắn";
+    if (rutLui) lyDo = "Bảo toàn mạng: giãn cách và tìm vật che";
     if (theoDoi.soDanThuc > 0 && dungYen.nguyHiem > 0.25) lyDo = "Đổi đường để né quỹ đạo đạn";
     if (chon.nguyHiem > 0.7) lyDo = "Nguy hiểm cao: chọn đường ít rủi ro nhất";
     if (tran.vungAnToan > Math.min(xe.x, xe.y, D.hangSo.kichThuoc - xe.x, D.hangSo.kichThuoc - xe.y) - D.hangSo.banKinhXe) lyDo = "Rời vùng nguy hiểm, trở lại khu an toàn";
     xe.boNhoAI.phanTich = {
-      ungVien: cacUngVien.map(ungVien => ({ diem: ungVien.diem, duong: ungVien.duong.slice(1), nguyHiem: ungVien.nguyHiem })),
+      ungVien: cacUngVien.map(ungVien => ({ diem: ungVien.diem, duong: ungVien.duong.slice(1), nguyHiem: ungVien.nguyHiem,
+        ga: ungVien.ga, quay: ungVien.quay, chuoiLenh: ungVien.chuoi,
+        satThuongGan: ungVien.satThuongGan, vaChamSom: ungVien.vaChamSom })),
       duongChon: chon.duong.slice(1),
       mucTieu: mucTieu ? { id: mucTieu.dich.id, x: mucTieu.dich.x, y: mucTieu.dich.y } : null,
       diemNgam: mucTieu ? mucTieu.diemNgam : null,
@@ -307,7 +520,10 @@
       lyDo,
       soDanTheoDoi: theoDoi.soDanThuc,
       chanTroi,
-      diem: chon.diem
+      diem: chon.diem, phienBan: D.phienBanAI, rutLui, beTac,
+      diemDen, kieuNgam: mucTieu?.kieuNgam || null,
+      chuoiLenh: chon.chuoi, satThuongGan: chon.satThuongGan,
+      thoiDiemQuyetDinh: tran.thoiGian
     };
     return lenh;
   };
