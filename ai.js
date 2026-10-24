@@ -682,6 +682,7 @@
 
   // Các cấp khác nhau ở cách suy nghĩ. Máu, tốc độ, sát thương và thời gian
   // nạp đạn vẫn do cùng bộ vật lý quyết định, không được cộng chỉ số cho bot.
+  D.phienBanBot = "bot-2";
   D.cauHinhCapBot = function (giaTri) {
     const so = Number(giaTri);
     const cap = typeof D.gioiHanCapBot === "function" ? D.gioiHanCapBot(giaTri)
@@ -690,14 +691,19 @@
     const i = cap - 1;
     return {
       cap,
-      trePhanUng: [0.60, 0.55, 0.50, 0.45, 0.40, 0.34, 0.28, 0.22, 0.16, 0.10][i],
-      saiSoNgam: [0.260, 0.210, 0.170, 0.125, 0.090, 0.065, 0.042, 0.026, 0.014, 0.006][i],
-      tyLeDonDau: [0, 0.04, 0.10, 0.25, 0.45, 0.62, 0.75, 0.86, 0.94, 1][i],
-      chanTroi: [0, 0, 0, 0.65, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8][i],
-      soUngVien: [0, 0, 0, 6, 7, 8, 10, 12, 14, 15][i],
-      neDan: cap >= 4,
-      neDanDuDoan: cap >= 5,
-      chienThuat: cap >= 7
+      phienBan: D.phienBanBot,
+      // Mức sức mạnh 11–20 là quy ước mở rộng; bản cũ chỉ có 1–10.
+      capSucManh: cap + 10,
+      trePhanUng: 0.1, // Đã chạm nhịp AI của game, không quảng cáo phản ứng nhanh giả.
+      saiSoNgam: [0.005, 0.0045, 0.004, 0.0035, 0.003, 0.0025, 0.002, 0.0015, 0.001, 0.0005][i],
+      tyLeDonDau: 1,
+      chanTroi: [1.9, 1.95, 2, 2.05, 2.1, 2.15, 2.2, 2.25, 2.3, 2.4][i],
+      soUngVien: [19, 20, 21, 22, 23, 25, 27, 29, 31, 33][i],
+      soUngVienToiDa: [20, 21, 22, 23, 24, 30, 32, 34, 36, 38][i],
+      neDan: true, neDanDuDoan: true, chienThuat: true,
+      diVong: cap >= 6, phongThuSom: cap >= 7,
+      ngamThichNghi: cap >= 8, phaBeTac: cap >= 9,
+      neSatNong: cap >= 10
     };
   };
 
@@ -716,6 +722,9 @@
   }
 
   function chonMucTieuBot(xe, tran, doiThu, cauHinh) {
+    if (cauHinh.ngamThichNghi) {
+      return chonMucTieu(xe, tran, doiThu, theoDoiDoiThu(xe, tran, doiThu));
+    }
     let chon = null;
     for (const dich of doiThu) {
       const quanSat = { vx: dich.vx || 0, vy: dich.vy || 0 };
@@ -753,14 +762,70 @@
     return { ga, quay };
   }
 
-  function taoUngVienBot(xe, tran, cauHinh) {
-    // Thêm dần lựa chọn tiến/lùi/dừng và độ cong đường đi ở mỗi cấp.
-    // Cấp 10 xét đủ 3 mức ga × 5 mức quay như bộ AI người chơi.
+  function timDiemChienThuatBot(xe, tran, doiThu, mucTieu, cauHinh) {
+    if (!cauHinh.diVong) return null;
+    const n = xe.boNhoAI;
+    const rut = n.rutLuiBot;
+    const beTac = cauHinh.phaBeTac && tran.thoiGian - n.lanTrungBot > 6;
+    if (!rut && mucTieu.thong && !beTac) { n.diemDenBot = null; return null; }
+    const bien = D.tinhVungAnToan(tran.thoiGian + 1.5) + D.hangSo.banKinhXe + 8;
+    const hopLe = p => Math.min(p.x, p.y, 960 - p.x, 960 - p.y) > bien && duongDiThong(xe, p, tran);
+    // Kiểm tra cả đoạn đầu đường rút, độc lập với mục tiêu đang ngắm.
+    const giaNguyHiem = p => {
+      let gia = 0;
+      for (const d of doiThu) {
+        const duong = [0.25, 0.6, 1].map(t => ({ x: xe.x + (p.x - xe.x) * t, y: xe.y + (p.y - xe.y) * t }));
+        for (const q of duong) if (duongBanThong(q, d, tran)) {
+          gia += Math.max(0, (rut ? 220 : 125) - khoangCach(q, d)) * (rut ? 3 : 1.5);
+        }
+      }
+      return gia;
+    };
+    const cu = n.diemDenBot;
+    if (cu && cu.rut === rut && cu.dichId === mucTieu.dich.id && cu.hetHan > tran.thoiGian &&
+        khoangCach(xe, cu) > 24 && hopLe(cu) && giaNguyHiem(cu) < 100) return cu;
+    const cacDiem = [];
+    const dem = D.hangSo.banKinhXe + 18;
+    for (const w of tran.tuong) for (const x of [w.x - dem, w.x + w.rong + dem])
+      for (const y of [w.y - dem, w.y + w.cao + dem]) cacDiem.push({ x, y });
+    for (let i = 0; i < 12; i++) {
+      const goc = i * Math.PI / 6;
+      const tam = rut ? 160 : 230;
+      const gocTam = rut ? xe : mucTieu.dich;
+      cacDiem.push({ x: gocTam.x + Math.cos(goc) * tam, y: gocTam.y + Math.sin(goc) * tam });
+    }
+    let chon = null, giaTot = Infinity;
+    for (const p of cacDiem) {
+      if (!hopLe(p) || khoangCach(xe, p) < 35) continue;
+      const thong = duongBanThong(p, mucTieu.dich, tran);
+      let gia = khoangCach(xe, p) + giaNguyHiem(p) + (thong ? 0 : rut ? -40 : 350);
+      if (beTac && cu && khoangCach(p, cu) < 45) gia += 160;
+      if (gia < giaTot) { chon = p; giaTot = gia; }
+    }
+    n.diemDenBot = chon ? { ...chon, rut, dichId: mucTieu.dich.id, hetHan: tran.thoiGian + 2 } : null;
+    return n.diemDenBot;
+  }
+
+  function taoUngVienBot(xe, tran, cauHinh, diemDen) {
+    // Tất cả cấp mới đều có đủ tiến/lùi/dừng và thử thêm chuỗi đổi hướng.
     const cacLenh = [[1, 0], [1, -1], [1, 1], [-1, 0], [0, 0], [-1, -1],
       [-1, 1], [1, -0.5], [1, 0.5], [0, -1], [0, 1], [-1, -0.5],
-      [-1, 0.5], [0, -0.5], [0, 0.5]].slice(0, cauHinh.soUngVien);
-    return cacLenh.map(([ga, quay]) => {
-      quay *= xe.boNhoAI.ben;
+      [-1, 0.5], [0, -0.5], [0, 0.5]];
+    const chuoi = cacLenh.map(([ga, quay]) => [{ ga, quay: quay * xe.boNhoAI.ben, den: cauHinh.chanTroi }]);
+    for (const moc of [0.25, 0.5, 0.75]) for (const quay of [-1, 0, 1]) for (const ga of [-1, 1]) {
+      chuoi.push([{ ga, quay, den: moc }, { ga: quay === 0 ? -ga : ga, quay: -quay, den: cauHinh.chanTroi }]);
+    }
+    chuoi.length = cauHinh.soUngVien;
+    if (diemDen) for (const ga of [-1, 1]) {
+      const huong = Math.atan2(diemDen.y - xe.y, diemDen.x - xe.x) + (ga < 0 ? Math.PI : 0);
+      const quay = kep(D.chuanHoaGoc(huong - xe.goc) * 2, -1, 1);
+      chuoi.push([{ ga, quay, den: cauHinh.chanTroi }],
+        [{ ga, quay, den: 0.35 }, { ga, quay: 0, den: cauHinh.chanTroi }]);
+    }
+    const conLai = phanKeHoachConLai(xe.boNhoAI.keHoachBot, tran.thoiGian);
+    if (conLai) { conLai.at(-1).den = cauHinh.chanTroi; chuoi.push(conLai); }
+    return chuoi.map(cacLenh => {
+      const { ga, quay } = cacLenh[0];
       // Chỉ sao chép vị trí; không sao chép lịch sử AI vào hàng nghìn bước thử.
       let viTri = { x: xe.x, y: xe.y, goc: xe.goc };
       const duong = [{ x: xe.x, y: xe.y, t: 0 }];
@@ -770,23 +835,31 @@
         const dt = Math.min(0.1, cauHinh.chanTroi - t);
         const dau = viTri;
         const soBuoc = Math.ceil(dt * 60 - 0.000001);
-        for (let i = 0; i < soBuoc; i++) viTri = D.tinhBuocXe(viTri, { ga, quay }, dt / soBuoc, tran.tuong);
+        for (let i = 0; i < soBuoc; i++) {
+          const luc = t + i * dt / soBuoc;
+          const lenh = cacLenh.find(l => luc < l.den - 1e-6) || cacLenh.at(-1);
+          viTri = D.tinhBuocXe(viTri, lenh, dt / soBuoc, tran.tuong);
+        }
         if (ga && khoangCach(dau, viTri) < D.hangSo.tocDoXe * dt * 0.3) biCan += dt;
         t += dt;
         duong.push({ x: viTri.x, y: viTri.y, t });
       }
-      return { ga, quay, duong, biCan, diem: 0, nguyHiem: 0 };
+      return { ga, quay, chuoiLenh: cacLenh, tiepTuc: cacLenh.loai === "tiep-tuc", duong, biCan, diem: 0, nguyHiem: 0 };
     });
   }
 
   function chamDiemBot(ungVien, xe, tran, cauHinh, cacDan, doiThu, mucTieu, lenhDonGian) {
     const H = D.hangSo;
     const tamNhin = cauHinh.chanTroi;
-    const itMau = xe.hp / xe.hpToiDa <= 0.40;
+    const itMau = xe.hp / xe.hpToiDa <= 0.40 || !!xe.boNhoAI.rutLuiBot;
     let diem = -ungVien.biCan * (100 + cauHinh.cap * 12);
     let nguyHiem = 0;
+    ungVien.satThuongGan = 0;
+    ungVien.satThuongBo = 0;
+    ungVien.nguyCoSapBan = 0;
     for (const dan of cacDan) {
       let ganNhat = { khoangCach: Infinity, t: tamNhin };
+      let tiepXuc = Infinity;
       for (let i = 1; i < ungVien.duong.length; i++) {
         const dau = ungVien.duong[i - 1];
         const cuoi = ungVien.duong[i];
@@ -795,6 +868,7 @@
         if (ketThuc <= batDau) continue;
         const gan = tiepCanGanNhat(dau, cuoi, dan, batDau, ketThuc);
         if (gan.khoangCach < ganNhat.khoangCach) ganNhat = gan;
+        tiepXuc = Math.min(tiepXuc, tiepXucDauTien(dau, cuoi, dan, batDau, ketThuc));
       }
       const khoangDu = ganNhat.khoangCach - H.banKinhXe - H.banKinhDan - 5;
       const khanCap = 1 - ganNhat.t / (tamNhin + 0.8);
@@ -802,6 +876,9 @@
       nguyHiem = Math.max(nguyHiem, ruiRo);
       // Cộng rủi ro của TẤT CẢ viên đạn để nhận biết hai làn đạn giao nhau.
       diem -= (khoangDu <= 0 ? 3200 : 190 * ruiRo) * khanCap * dan.doTinCay;
+      if (dan.doTinCay === 1 && tiepXuc <= 0.65) ungVien.satThuongGan++;
+      if (cauHinh.neSatNong && dan.doTinCay < 1 && tiepXuc <= 0.22)
+        ungVien.nguyCoSapBan = Math.max(ungVien.nguyCoSapBan, dan.doTinCay);
     }
     for (let i = 1; i < ungVien.duong.length; i++) {
       const viTri = ungVien.duong[i];
@@ -812,8 +889,13 @@
         viTri.x + H.banKinhXe - (H.kichThuoc - bien),
         viTri.y + H.banKinhXe - (H.kichThuoc - bien), 0);
       if (raNgoai > 0) diem -= (500 + raNgoai * 5) * dt;
+      if (raNgoai > 0 && viTri.t <= 0.65) ungVien.satThuongBo += H.satThuongNgoaiVung * dt;
     }
     const cuoi = ungVien.duong[ungVien.duong.length - 1];
+    if (xe.boNhoAI.diemDenBot) {
+      const den = xe.boNhoAI.diemDenBot;
+      diem += (khoangCach(xe, den) - khoangCach(cuoi, den)) * 0.9;
+    }
     let soDichLoThien = 0;
     for (const dich of doiThu) {
       const viTri = duDoanViTriDich(dich, { vx: dich.vx || 0, vy: dich.vy || 0 }, tamNhin * 0.5, tran);
@@ -824,6 +906,16 @@
       if (cauHinh.chienThuat && itMau) {
         if (loThien && tam < 370) diem -= (370 - tam) * 0.32;
         if (!loThien && tam < 500) diem += 25;
+      }
+      if (cauHinh.phongThuSom && khoangCach(xe, dich) < 450) {
+        const dichGan = duDoanViTriDich(dich, { vx: dich.vx || 0, vy: dich.vy || 0 }, 0.8, tran);
+        for (const p of ungVien.duong) {
+          const tiLe = Math.min(p.t / 0.8, 1);
+          const dichToi = { x: dich.x + (dichGan.x - dich.x) * tiLe, y: dich.y + (dichGan.y - dich.y) * tiLe };
+          const tamGan = khoangCach(p, dichToi);
+          if (tamGan < 140 && dich.thoiGianNap < p.t + 0.15 && duongBanThong(p, dichToi, tran))
+            diem -= (140 - tamGan) * 0.9;
+        }
       }
     }
     if (cauHinh.chienThuat) diem -= Math.max(0, soDichLoThien - 1) * (20 + cauHinh.cap * 2);
@@ -845,6 +937,7 @@
     }
     ungVien.diem = diem;
     ungVien.nguyHiem = nguyHiem;
+    ungVien.nguyCoMatMang = ungVien.satThuongGan + ungVien.satThuongBo >= xe.hp - 1e-6 ? 1 : 0;
     return diem;
   }
 
@@ -864,6 +957,7 @@
     const doiThu = doiThuConSong(xe, tran).sort((a, b) => khoangCach(xe, a) - khoangCach(xe, b));
     if (!doiThu.length) return { ga: 0, quay: 0, gocNong: xe.gocNong, ban: false };
     const doiCap = boNho.capBot !== cauHinh.cap;
+    if (doiCap) boNho.keHoachBot = null;
     const matMucTieu = !doiThu.some(dich => dich.id === boNho.mucTieuId);
     if (!doiCap && !matMucTieu && boNho.lenhDaChon && tran.thoiGian + 0.000001 < boNho.nghiTiepLuc) {
       return khoaCoAnToan(xe, tran, boNho.lenhDaChon, boNho.tamBan);
@@ -871,20 +965,44 @@
     if (doiCap || matMucTieu || boNho.doiHuongLuc === undefined || tran.thoiGian >= boNho.doiHuongLuc) {
       doiDotNgauNhien(xe, tran, doiThu, cauHinh);
     }
+    if (boNho.soTrungTruocBot !== xe.soTrung || !Number.isFinite(boNho.lanTrungBot)) boNho.lanTrungBot = tran.thoiGian;
+    boNho.soTrungTruocBot = xe.soTrung;
+    if (Number.isFinite(boNho.hpTruocBot) && xe.hp < boNho.hpTruocBot) boNho.rutLuiDenBot = tran.thoiGian + 3;
+    boNho.hpTruocBot = xe.hp;
+    const apSat = cauHinh.phongThuSom && doiThu.some(d => khoangCach(xe, d) < 180 && d.thoiGianNap < 0.35 && duongBanThong(xe, d, tran));
+    boNho.rutLuiBot = xe.hp / xe.hpToiDa <= 0.4 || tran.thoiGian < (boNho.rutLuiDenBot || 0) || apSat;
     const mucTieu = chonMucTieuBot(xe, tran, doiThu, cauHinh);
+    const diemDen = timDiemChienThuatBot(xe, tran, doiThu, mucTieu, cauHinh);
+    const khoaDiem = diemDen ? `${Math.round(diemDen.x)},${Math.round(diemDen.y)}` : "tu-do";
+    if (boNho.khoaDiemBot !== khoaDiem) boNho.keHoachBot = null;
+    boNho.khoaDiemBot = khoaDiem;
     const lenhDonGian = lenhDiDonGian(xe, tran, mucTieu, cauHinh);
     let chon = lenhDonGian;
     let cacUngVien = [];
     let cacDan = [];
-    if (cauHinh.cap >= 4) {
-      cacDan = theoDoiDan(xe, tran, doiThu, cauHinh.chanTroi, cauHinh.chienThuat).danhSach;
+    if (cauHinh.neDan) {
+      cacDan = cauHinh.neSatNong ? duDoanPhatBanGan(xe, tran, doiThu).danhSach
+        : theoDoiDan(xe, tran, doiThu, cauHinh.chanTroi, cauHinh.chienThuat).danhSach;
+      // Bộ dự đoán sát nòng có chân trời 1,5s; vẫn theo dõi đủ đạn thật
+      // theo chân trời dài hơn của cấp bot, không làm cấp 10 nhìn ngắn đi.
+      if (cauHinh.neSatNong) cacDan = [
+        ...theoDoiDan(xe, tran, doiThu, cauHinh.chanTroi, false).danhSach,
+        ...cacDan.filter(d => d.doTinCay < 1)
+      ];
       if (!cauHinh.neDanDuDoan) cacDan = cacDan.filter(dan => khoangCach(xe, dan) < 140);
-      cacUngVien = taoUngVienBot(xe, tran, cauHinh);
-      let diemTotNhat = -Infinity;
+      cacUngVien = taoUngVienBot(xe, tran, cauHinh, diemDen);
       for (const ungVien of cacUngVien) {
-        const diem = chamDiemBot(ungVien, xe, tran, cauHinh, cacDan, doiThu, mucTieu, lenhDonGian);
-        if (diem > diemTotNhat) { diemTotNhat = diem; chon = ungVien; }
+        chamDiemBot(ungVien, xe, tran, cauHinh, cacDan, doiThu, mucTieu, lenhDonGian);
+        const anToanHon = !chon.duong || ungVien.nguyCoMatMang < chon.nguyCoMatMang ||
+          (ungVien.nguyCoMatMang === chon.nguyCoMatMang && (ungVien.satThuongGan < chon.satThuongGan ||
+            (ungVien.satThuongGan === chon.satThuongGan && (ungVien.nguyCoSapBan < chon.nguyCoSapBan ||
+              (ungVien.nguyCoSapBan === chon.nguyCoSapBan && ungVien.diem > chon.diem)))));
+        if (anToanHon) chon = ungVien;
       }
+      const giu = cacUngVien.find(u => u.tiepTuc);
+      if (giu && giu.nguyCoMatMang === chon.nguyCoMatMang && giu.satThuongGan === chon.satThuongGan &&
+          giu.nguyCoSapBan === chon.nguyCoSapBan && giu.diem >= chon.diem - 10 && giu.biCan < 0.25) chon = giu;
+      if (!chon.tiepTuc) boNho.keHoachBot = { batDau: tran.thoiGian, chuoi: chon.chuoiLenh.map(l => ({ ...l })) };
     }
     const gocNong = Math.atan2(mucTieu.diemNgam.y - xe.y, mucTieu.diemNgam.x - xe.x) + boNho.saiSo;
     const lenh = { ga: chon.ga, quay: chon.quay, gocNong,
@@ -897,7 +1015,11 @@
     boNho.phanTichBot = { cap: cauHinh.cap, chanTroi: cauHinh.chanTroi,
       soUngVien: cacUngVien.length, nguyHiem: chon.nguyHiem || 0,
       diemNgam: { ...mucTieu.diemNgam }, duongChon: chon.duong || [],
-      soDanTheoDoi: cacDan.length, chienThuat: cauHinh.chienThuat && xe.hp / xe.hpToiDa <= 0.40
+      phienBan: D.phienBanBot, capSucManh: cauHinh.capSucManh,
+      chuoiLenh: chon.chuoiLenh || [], diemDen, satThuongGan: chon.satThuongGan || 0,
+      nguyCoSapBan: chon.nguyCoSapBan || 0,
+      kieuNgam: mucTieu.kieuNgam || "don-dau-thang",
+      soDanTheoDoi: cacDan.length, chienThuat: boNho.rutLuiBot
         ? "Rút lui, tìm vật che chắn" : (cauHinh.chienThuat ? "Chọn góc bắn, tránh nhiều hướng đạn" : "Áp sát, di chuyển vòng") };
     return khoaCoAnToan(xe, tran, lenh, boNho.tamBan);
   };

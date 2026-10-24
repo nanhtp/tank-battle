@@ -245,7 +245,8 @@
     const hatGiong = coHatGiong ? ((Number(tuyChon.hatGiong) >>> 0) || 42) : D.taoHatGiongNgauNhien();
     const tran = {
       xe: [], dan: [], tuong: [],
-      thoiGian: 0, vong: 1, capBot: capBot, suKien: [], hieuUng: [], ketThuc: false,
+      thoiGian: 0, vong: 1, capBot: capBot, phienBanBot: D.phienBanBot || 'bot-1',
+      cauHinhBot: D.cauHinhCapBot?.(capBot) || null, suKien: [], hieuUng: [], ketThuc: false,
       ketQua: null, lyDoKetThuc: null, nguoiThang: null, vungAnToan: 0, hatGiong: hatGiong,
       _trangThaiNgauNhien: hatGiong, _maDan: 0, _maSuKien: 0,
       _tichLuyAI: H.chuKyAI, _daBaoThuVung: false, _daBaoDungThuVung: false

@@ -5,9 +5,16 @@
   const saoChep = x => JSON.parse(JSON.stringify(x));
   function chupXe(xe) {
     const p = xe.boNhoAI.phanTich;
+    const b = xe.boNhoAI.phanTichBot;
     return { id: xe.id, ten: xe.ten, mau: xe.mau, laNguoiChoi: xe.laNguoiChoi,
       x: xe.x, y: xe.y, vx: xe.vx, vy: xe.vy, goc: xe.goc, gocNong: xe.gocNong,
       hp: xe.hp, thoiGianNap: xe.thoiGianNap, conSong: xe.conSong, soBan: xe.soBan, soTrung: xe.soTrung, soHa: xe.soHa,
+      // Bot chỉ cần tóm tắt, không nhân bản toàn bộ đường dự đoán ở mỗi ảnh.
+      capBot: xe.capBot, phanTichBot: b ? { phienBan: b.phienBan, cap: b.cap,
+        chanTroi: b.chanTroi, soUngVien: b.soUngVien, nguyHiem: b.nguyHiem,
+        satThuongGan: b.satThuongGan, nguyCoSapBan: b.nguyCoSapBan,
+        diemDen: b.diemDen, chuoiLenh: b.chuoiLenh, kieuNgam: b.kieuNgam,
+        chienThuat: b.chienThuat } : null,
       lenh: { ...xe.lenh }, phanTich: p ? { lyDo: p.lyDo, nguyHiem: p.nguyHiem,
         mucTieu: p.mucTieu, diemNgam: p.diemNgam, soDanTheoDoi: p.soDanTheoDoi,
         chanTroi: p.chanTroi, diem: p.diem, phienBan: p.phienBan,
@@ -81,7 +88,8 @@
   D.xuatNhatKy = tran => {
     const log = saoChep({ dinhDang: 'tank-lab-log', phienBan: 1,
       taoLuc: new Date().toISOString(), hatGiong: tran.hatGiong,
-      cauHinh: { capBot: tran.capBot, phienBanAI: D.layAINguoiChoi?.() === D.AINguoiChoi ? D.phienBanAI : 'tuy-chinh',
+      cauHinh: { capBot: tran.capBot, phienBanBot: tran.phienBanBot || 'bot-1',
+        cauHinhBot: tran.cauHinhBot || null, phienBanAI: D.layAINguoiChoi?.() === D.AINguoiChoi ? D.phienBanAI : 'tuy-chinh',
         hangSo: D.hangSo, tuong: tran.tuong },
       thoiGian: tran.thoiGian, ketThuc: tran.ketThuc, ketQua: tran.ketQua, lyDoKetThuc: tran.lyDoKetThuc,
       nguoiThang: tran.nguoiThang ? tran.nguoiThang.ten : null,

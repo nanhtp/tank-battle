@@ -58,18 +58,22 @@ Xe chọn hành động có điểm tốt nhất và chỉ thực hiện phần 
 
 AI bot thay đổi theo cấp được chọn. Đây là AI theo luật và mô phỏng dự đoán, **không phải mô hình học máy**, không có quá trình huấn luyện và không bảo đảm xe bạn luôn thắng.
 
-## Cấp độ bot 1–10
+## Cấp độ bot 1–10 mới — bot-2
 
-- **Cấp 1–3:** phản ứng chậm hơn, ngắm có sai số lớn hơn, chạy vòng ngẫu nhiên và thoát kẹt cơ bản; chưa dùng bộ thử nhiều đường đi để né đạn. Thích hợp làm quen và thử chương trình AI mới.
-- **Cấp 4–6:** ngắm đón đầu tốt hơn, xét nhiều hướng di chuyển hơn và né quỹ đạo đạn sớm hơn. Cấp 5 là mức mặc định để thử nghiệm.
-- **Cấp 7–9:** tính đường đi xa hơn, cân nhắc tường che, hỏa lực từ nhiều đối thủ, tình trạng HP và đường trở lại vùng an toàn.
-- **Cấp 10:** phản ứng ở nhịp nhanh nhất của game, sai số ngắm nhỏ nhất, ngắm đón đầu đầy đủ và thử tối đa 15 phương án với tầm dự đoán 1,8 giây.
+Thang cũ được thay bằng thang mạnh hơn. Vì bản trước chỉ có 1–10, mức 11–15 là **quy ước mở rộng sức mạnh** dùng để thiết kế cấp 1–5 mới, không phải năm cấu hình cũ đã tồn tại. Từ cấp 1, bot đã có tầm nhìn xa hơn, nhiều đường né hơn và sai số ngắm nhỏ hơn cấp 10 cũ. Cấp 5 vẫn là mặc định nhưng hiện khó hơn trước.
 
-Các thông số tăng dần theo từng cấp, gồm độ trễ phản ứng khoảng 0,6 xuống 0,1 giây, sai số ngắm giảm từ 0,26 xuống 0,006 radian và mức ngắm đón đầu tăng từ 0 lên 100%. Bộ thử đường đi bắt đầu ở cấp 4 với 6 phương án nhìn trước 0,65 giây, tăng dần đến 15 phương án và 1,8 giây ở cấp 10. Nhịp phản ứng được làm tròn theo vòng xử lý AI 0,1 giây của game.
+- **Cấp 1–5:** tương ứng mức sức mạnh mở rộng 11–15. Tất cả ngắm đón đầu đầy đủ, né đạn bằng nhiều chuỗi tiến/lùi/rẽ, cân nhắc HP và nhiều hướng bắn. Tầm nhìn 1,9–2,1 giây; 19–23 phương án cơ bản, có thể thêm một phương án tiếp tục kế hoạch.
+- **Cấp 6:** thêm tìm điểm đi vòng vật cản và đường rút; kiểm tra lại nguy hiểm từ các đối thủ khi giữ điểm đến.
+- **Cấp 7:** thêm giãn cách chủ động khi đối thủ gần và sắp bắn, dù bot vẫn đủ máu.
+- **Cấp 8:** thêm chọn mô hình ngắm theo sai số đã quan sát khi đối thủ chạy cong; chỉ dùng thông tin hiện tại và lịch sử.
+- **Cấp 9:** thêm tìm góc tiếp cận mới khi quá 6 giây không gây sát thương.
+- **Cấp 10:** thêm xét ngắm thẳng/đón đầu của đối thủ sắp bắn ở cự ly gần và ưu tiên tránh tiếp xúc sát nòng. Tầm nhìn 2,4 giây; tối đa 38 phương án khi có điểm đến và kế hoạch cũ.
 
-Độ khó đến từ quyết định của AI. Mọi xe dùng cùng luật HP của chế độ, sát thương, giới hạn tốc độ và thời gian nạp đạn. Cấp bot không thay chương trình AI của xe bạn. Kết quả từng trận vẫn phụ thuộc vị trí, số đối thủ và diễn biến ngẫu nhiên; một cấp cao hơn không được bảo đảm thắng mọi trận.
+Mọi cấp phản ứng ở chu kỳ AI **0,1 giây**; cấp cao tăng độ khó bằng chất lượng quyết định, không ghi độ trễ thấp hơn nhịp game. Sai số ngắm giảm dần từ 0,005 xuống 0,0005 radian. Mọi xe giữ cùng luật HP, sát thương, tốc độ và nạp đạn. Xe người chơi vẫn dùng chiến thuật 3. Cấp cao hơn không bảo đảm thắng mọi trận.
 
-Lập trình viên có thể xem cấu hình bằng `DauTruong.cauHinhCapBot(cap)` và chọn cấp khi tạo trận qua `capBot`. Cấu hình có các trường `trePhanUng`, `saiSoNgam`, `tyLeDonDau`, `chanTroi` và `soUngVien`.
+Log mới ghi `cauHinh.phienBanBot = "bot-2"`, cấu hình chốt khi tạo trận và tóm tắt quyết định bot. Log cũ thiếu trường này thuộc thang trước; không gộp tỷ lệ thắng hai thang chỉ dựa vào cùng số cấp. Cách đọc log cũ vẫn hoạt động. Chi tiết cấu hình và kiểm tra nằm trong `CAP-BOT-MOI.md`.
+
+Lập trình viên dùng `DauTruong.cauHinhCapBot(cap)` và `capBot` như trước; giá trị giao diện vẫn là 1–10. `soUngVien` là số phương án nền, `soUngVienToiDa` gồm đường đi tới điểm đích và tiếp tục kế hoạch khi có.
 
 ### AI chiến thuật 3: thực hiện kế hoạch và rút lui
 

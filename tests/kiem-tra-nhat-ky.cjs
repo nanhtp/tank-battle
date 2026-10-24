@@ -64,4 +64,19 @@ test('Phát bắn bị chặn ở đầu nòng vẫn có bản ghi riêng',()=>{
  D.buocMoPhong(t,1/60,x=>x.laNguoiChoi?{ga:0,quay:0,gocNong:0,ban:true}:idle());
  assert(t.nhatKy.phatBan[0].biChanTaiNong);assert.equal(t.nhatKy.phatBan[0].ketQua.loai,'chan-tai-nong');assert.equal(t.dan.length,0);
 });
+test('Log phân biệt thang bot mới với log cũ và chốt cấu hình từ đầu trận',()=>{
+ const t=match(3); D.AIBot(t.xe[1],t); D.ghiDienBien(t,true);
+ const log=D.xuatNhatKy(t);
+ assert.equal(log.cauHinh.phienBanBot,'bot-2');
+ assert.equal(log.cauHinh.cauHinhBot.capSucManh,15);
+ const b=log.dienBien.at(-1).xe[1].phanTichBot;
+ assert.equal(b.phienBan,'bot-2'); assert(Array.isArray(b.chuoiLenh));
+ assert.equal(b.duongChon,undefined,'Không nhân bản đường dài của mọi bot vào log');
+ const cauHinhCu=D.cauHinhCapBot; D.cauHinhCapBot=()=>({cap:99});
+ assert.equal(D.xuatNhatKy(t).cauHinh.cauHinhBot.cap,5);
+ D.cauHinhCapBot=cauHinhCu;
+ delete log.cauHinh.phienBanBot; delete log.cauHinh.cauHinhBot;
+ for(const x of log.xeCuoi) delete x.phanTichBot;
+ D.kiemTraNhatKy(log); assert(D.phanTichNhatKy(log).includes('Rồng Thép'));
+});
 console.log(`${passed} nhóm nhật ký đạt.`);
