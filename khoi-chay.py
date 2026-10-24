@@ -33,7 +33,7 @@ class XuLy(SimpleHTTPRequestHandler):
             self.tra_json(403, {'loi': 'Địa chỉ máy chủ không hợp lệ.'}); return
         if urlsplit(self.path).path == '/api/cau-hinh-log':
             self.tra_json(200, {'maBaoVe': self.server.ma_bao_ve, 'thuMuc': str(self.server.thu_muc_log)})
-        elif self.path.split('?')[0] in ['/', '/index.html', '/style.css', '/game.js', '/nhat-ky.js', '/tu-luu-log.js', '/vat-ly.js', '/ai.js', '/HUONG-DAN.md']:
+        elif self.path.split('?')[0] in ['/', '/index.html', '/style.css', '/game.js', '/nhip-nen.js', '/nhat-ky.js', '/tu-luu-log.js', '/vat-ly.js', '/ai.js', '/HUONG-DAN.md']:
             super().do_GET()
         else:
             self.send_error(404)

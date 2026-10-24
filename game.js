@@ -196,9 +196,12 @@
     thongBao.querySelector('div > span').textContent = sanSang ? 'Nhấn Bắt đầu để các AI tranh tài.' : 'Nhấn Tiếp tục để trở lại trận đấu.';
   }
 
-  function ketThucTran() {
+  function ketThucTran(mocKetThuc) {
     trangThai = 'ket-thuc';
     D.tuDongLuuLog?.(tran);
+    // Nếu vừa xử lý bù sau một nhịp nền bị trễ, tính 5 giây từ lúc
+    // trận thực sự kết thúc, không bắt đầu đếm lại lúc quay về tab.
+    if (lay('tu-dau-lai').checked) mocTuDauLai = mocKetThuc + 5000;
     tichLuy = 0;
     const cuaBan = tran.xe.find(xe => xe.laNguoiChoi);
     lay('tieu-de-ket-qua').textContent = tran.ketQua === 'hoa' ? 'Hòa · Hết 5 phút' : tran.ketQua === 'thua' ? `${cuaBan.ten} đã thua` : `${cuaBan.ten} chiến thắng!`;
@@ -440,7 +443,7 @@
         D.buocMoPhong(tran, BUOC_CO_DINH, (xe, theGioi) => xe.laNguoiChoi ? D.layAINguoiChoi()(xe, theGioi) : D.AIBot(xe, theGioi));
         tichLuy = Math.max(0, tichLuy - BUOC_CO_DINH); soBuoc++;
       }
-      if (tran.ketThuc) ketThucTran();
+      if (tran.ketThuc) ketThucTran(moc - tichLuy / tocDo * 1000);
       if (moc - mocBang > 120) { capNhatBang(); mocBang = moc; }
     }
   }
@@ -453,6 +456,18 @@
   // requestAnimationFrame thường dừng khi tab bị ẩn. Hẹn giờ vẫn cập nhật
   // mô phỏng bằng thời gian thực, kể cả khi trình duyệt giãn nhịp gọi.
   setInterval(() => capNhatMoPhong(performance.now()), 100);
+
+  // Luồng nền gửi nhịp độc lập với vòng vẽ và bộ hẹn giờ của tab.
+  // Mọi nguồn nhịp vẫn dùng chung đồng hồ, không nhân đôi tốc độ trận.
+  // Mở trực tiếp file hoặc trình duyệt không hỗ trợ vẫn dùng hẹn giờ trên.
+  if (typeof Worker !== 'undefined') {
+    let nhipNen;
+    try {
+      nhipNen = new Worker('nhip-nen.js');
+      nhipNen.onmessage = () => capNhatMoPhong(performance.now());
+      nhipNen.onerror = () => { nhipNen.terminate(); };
+    } catch (_) { nhipNen?.terminate(); }
+  }
 
   lay('nut-xem-log').addEventListener('click', () => {
     lay('phan-tich-log').textContent = D.phanTichNhatKy(D.xuatNhatKy(tran));

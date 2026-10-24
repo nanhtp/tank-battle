@@ -221,6 +221,7 @@ function taoPhien(tuyChon = {}) {
   let maKhung = 0;
   const hangKhung = [];
   const cacHenGio = [];
+  const cacLuongNen = [];
   const cacTran = [];
   const cacTuyChon = [];
   const cacBuoc = [];
@@ -252,6 +253,14 @@ function taoPhien(tuyChon = {}) {
     requestAnimationFrame: ham => { hangKhung.push(ham); return ++maKhung; }
   });
   cuaSo.window = cuaSo; cuaSo.globalThis = cuaSo;
+  if (tuyChon.coWorker) cuaSo.Worker = class {
+    constructor(tep) {
+      assert.equal(tep, 'nhip-nen.js');
+      if (tuyChon.loiWorker) throw new Error('Worker bị chặn');
+      this.daDung = false; cacLuongNen.push(this);
+    }
+    terminate() { this.daDung = true; }
+  };
   vm.createContext(cuaSo);
   for (const tep of ['vat-ly.js', 'ai.js']) vm.runInContext(maNguon[tep], cuaSo, { filename: tep });
   const D = cuaSo.DauTruong;
@@ -274,8 +283,12 @@ function taoPhien(tuyChon = {}) {
       assert.equal(lay('ban-do').getContext('2d').doSau, 0, 'Canvas save/restore chưa cân bằng');
     }
   }
-  return { cuaSo, taiLieu, lay, D, cacTran, cacTuyChon, cacBuoc, khung, toanManHinh,
+  return { cuaSo, taiLieu, lay, D, cacTran, cacTuyChon, cacBuoc, khung, toanManHinh, cacLuongNen,
     tran: () => cacTran.at(-1),
+    troiGian: ms => { moc += ms; },
+    nhipWorker: (n, ms = 100) => { for (let i = 0; i < n; i++) {
+      moc += ms; cacLuongNen.filter(luong => !luong.daDung).forEach(luong => luong.onmessage({ data: 'nhip' }));
+    } },
     nhipNen: (n, ms = 1000) => { for (let i = 0; i < n; i++) { moc += ms; cacHenGio.forEach(ham => ham()); } },
     henGioNgay: () => cacHenGio.forEach(ham => ham()),
     chon: (id, giaTri) => { const nut = lay(id); nut.value = String(giaTri); nut.phat('change'); },
@@ -772,7 +785,7 @@ kiemTra('Thắng, thua, hòa đều đếm đủ 5 giây thực ở nền rồi 
     p.lay('tu-dau-lai').checked = true; p.lay('tu-dau-lai').phat('change');
     if (kq === 'hoa') p.tran().thoiGian = 300 - 1 / 120;
     else for (const [i,x] of p.tran().xe.entries()) if (kq === 'thua' ? i === 0 : i > 0) { x.hp = 0; x.conSong = false; }
-    p.nhan('nut-bat-dau'); p.khung(1);
+    p.nhan('nut-bat-dau'); p.khung(1, 1000 / 120);
     const cu = p.tran(); assert.equal(cu.ketQua, kq);
     assert(p.lay('dem-nguoc-dau-lai').textContent.includes('5 giây'));
     p.taiLieu.hidden = true; p.nhipNen(4);
@@ -785,6 +798,93 @@ kiemTra('Thắng, thua, hòa đều đếm đủ 5 giây thực ở nền rồi 
     assert.equal(p.lay('tu-dau-lai').checked, true);
     p.nhipNen(1, 100); assert(Math.abs(p.tran().thoiGian - .2) < 1e-6);
   }
+});
+
+kiemTra('Tệp Worker phát nhịp 100 ms độc lập, không truy cập DOM', () => {
+  let nhip, chuKy; const thongDiep = [];
+  vm.runInNewContext(fs.readFileSync(path.join(thuMuc, 'nhip-nen.js'), 'utf8'), {
+    setInterval: (ham, ms) => { nhip = ham; chuKy = ms; },
+    postMessage: noiDung => thongDiep.push(noiDung)
+  }, { filename: 'nhip-nen.js' });
+  assert.equal(chuKy, 100); nhip(); nhip();
+  assert.deepEqual(thongDiep, ['nhip', 'nhip']);
+});
+
+kiemTra('Worker vẫn kết thúc và tự đấu lại khi vòng vẽ và hẹn giờ tab đều ngừng', () => {
+  const p = taoPhien({ coWorker: true });
+  assert.equal(p.cacLuongNen.length, 1);
+  p.lay('tu-dau-lai').checked = true;
+  p.nhan('nut-bat-dau'); p.taiLieu.hidden = true;
+  p.tran().xe[0].conSong = false;
+  const cu = p.tran();
+  p.nhipWorker(1);
+  assert.equal(cu.ketQua, 'thua');
+  p.nhipWorker(49); assert.equal(p.tran(), cu);
+  p.nhipWorker(1); assert.notEqual(p.tran(), cu);
+  assert.equal(nhanNut(p), 'Tạm dừng');
+  p.D.dangKyAI(() => ({ ga: 0, quay: 0, ban: false }));
+  p.D.AIBot = () => ({ ga: 0, quay: 0, ban: false });
+  p.nhipWorker(10);
+  const truoc = p.tran().thoiGian;
+  p.henGioNgay(); p.khung(1, 0);
+  assert.equal(p.tran().thoiGian, truoc, 'Ba nguồn nhịp không cộng trùng thời gian');
+  p.nhan('nut-bat-dau'); p.nhipWorker(100);
+  assert.equal(p.tran().thoiGian, truoc, 'Worker tôn trọng tạm dừng thủ công');
+});
+
+kiemTra('Nhịp nền trễ không bắt đầu lại 5 giây khi xử lý bù thắng, thua hoặc hòa', () => {
+  for (const tocDo of [.5, 1, 2]) for (const kq of ['thang', 'thua', 'hoa']) {
+    const p = taoPhien(); p.lay('tu-dau-lai').checked = true; p.tocDo(tocDo);
+    const cu = p.tran();
+    if (kq === 'hoa') cu.thoiGian = 300 - 1 / 120;
+    else for (const [i, xe] of cu.xe.entries()) if (kq === 'thua' ? i === 0 : i > 0) xe.conSong = false;
+    p.nhan('nut-bat-dau'); p.taiLieu.hidden = true;
+    p.troiGian(10000); // Không có bất cứ callback nào trong 10 giây.
+    p.taiLieu.hidden = false; p.taiLieu.phat('visibilitychange');
+    assert.equal(cu.ketQua, kq);
+    assert.notEqual(p.tran(), cu, `Không đếm lại khi đã quá hạn: ${kq}, ${tocDo}×`);
+    assert.equal(p.lay('dem-nguoc-dau-lai').hidden, true);
+  }
+});
+
+kiemTra('Nhịp nền trễ chỉ đếm phần 5 giây còn lại và vẫn chờ lưu log', () => {
+  const p = taoPhien(); p.lay('tu-dau-lai').checked = true;
+  p.nhan('nut-bat-dau'); const cu = p.tran(); cu.xe[0].conSong = false;
+  p.nhipNen(1, 3000);
+  assert.equal(p.tran(), cu);
+  assert(p.lay('dem-nguoc-dau-lai').textContent.includes('3 giây'));
+  let luu = 'dang-luu'; p.D.layTrangThaiTuLuu = () => luu;
+  p.nhipNen(1, 3000);
+  assert.equal(p.tran(), cu); assert(p.lay('dem-nguoc-dau-lai').textContent.includes('chờ lưu'));
+  luu = 'da-luu'; p.henGioNgay(); assert.notEqual(p.tran(), cu);
+});
+
+kiemTra('Worker bị chặn hoặc lỗi vẫn có hẹn giờ dự phòng', () => {
+  for (const loiWorker of [true, false]) {
+    const p = taoPhien({ coWorker: true, loiWorker });
+    if (!loiWorker) { p.cacLuongNen[0].onerror(); assert(p.cacLuongNen[0].daDung); }
+    p.nhan('nut-bat-dau'); p.tran().xe[0].conSong = false;
+    p.lay('tu-dau-lai').checked = true;
+    const cu = p.tran(); p.nhipNen(1, 100); p.nhipNen(5);
+    assert.notEqual(p.tran(), cu);
+  }
+});
+
+kiemTra('Xử lý bù nhiều lượt vẫn giữ đúng thời điểm kết thúc trận', () => {
+  const p = taoPhien(); p.lay('tu-dau-lai').checked = true;
+  p.D.dangKyAI(() => ({ ga: 0, quay: 0, ban: false }));
+  p.D.AIBot = () => ({ ga: 0, quay: 0, ban: false });
+  const buocGoc = p.D.buocMoPhong;
+  p.D.buocMoPhong = (tran, dt, ai) => {
+    if (tran.thoiGian >= 3) tran.xe[0].conSong = false;
+    return buocGoc(tran, dt, ai);
+  };
+  p.nhan('nut-bat-dau'); const cu = p.tran();
+  p.nhipNen(1, 10000);
+  assert.equal(cu.ketThuc, false, 'Lượt đầu chỉ xử lý tối đa 120 bước');
+  p.henGioNgay();
+  assert.equal(cu.ketQua, 'thua');
+  assert.notEqual(p.tran(), cu, 'Trận kết thúc khoảng giây 3, hạn đấu lại khoảng giây 8');
 });
 
 kiemTra('Tắt checkbox hủy đếm ngược; bật lại bắt đầu đủ 5 giây mới', () => {

@@ -89,6 +89,7 @@ Các tệp được tách theo nhiệm vụ:
 - `vat-ly.js`: tạo trận, chuyển động, đạn, va chạm và điều kiện kết thúc.
 - `ai.js`: AI xe bạn, AI bot và điểm đăng ký chương trình thay thế.
 - `game.js`: nút điều khiển, vòng lặp hiển thị, vẽ đấu trường và bảng trạng thái.
+- `nhip-nen.js`: luồng phát nhịp nền để tiếp tục trận và tự đấu lại khi chuyển tab.
 - `tests/`: các bài kiểm tra tự động tùy chọn, không cần thiết để mở game.
 
 Tên biến, tên hàm và chú thích dùng tiếng Việt không dấu để dễ đọc và nhập trên nhiều bàn phím. API được đặt tại `window.DauTruong`.
@@ -215,7 +216,7 @@ Nếu gặp `Unable to create process ... pythoncore-3.14-64`, thay tệp `MO-GA
 
 ## Tiếp tục trận khi chuyển tab hoặc cửa sổ
 
-Sau khi nhấn **Bắt đầu**, bạn có thể chuyển sang tab hay cửa sổ khác: game không tự tạm dừng. Bộ hẹn giờ tiếp tục mô phỏng kể cả khi trình duyệt ngừng vẽ tab nền. Bước vật lý vẫn giữ 1/60 giây; đồng hồ dùng thời gian đã trôi qua để xử lý khi nhịp hẹn giờ bị giãn. Khi trở lại, game hiển thị trạng thái đang có mà không tính thời gian hai lần.
+Sau khi nhấn **Bắt đầu**, bạn có thể chuyển sang tab hay cửa sổ khác: game không tự tạm dừng. Khi chạy bằng `MO-GAME-TU-LUU-LOG.cmd`, luồng nền `nhip-nen.js` phát nhịp độc lập với vòng vẽ và hẹn giờ của tab, giúp tiếp tục mô phỏng và tự đấu lại ở nền. Nếu luồng nền không được hỗ trợ hoặc bị chặn (chẳng hạn khi mở tệp trực tiếp), game dùng hẹn giờ dự phòng. Bước vật lý vẫn giữ 1/60 giây; các nguồn nhịp dùng chung đồng hồ nên không cộng thời gian hai lần.
 
 Nút **Tạm dừng** vẫn dừng trận theo yêu cầu của bạn. Thắng, thua hoặc đủ 5 phút vẫn kết thúc và gọi tự lưu log nếu chạy bằng `MO-GAME-TU-LUU-LOG.cmd`. Hãy giữ tab và chương trình khởi chạy mở. Trình duyệt đóng băng/hủy tab để tiết kiệm bộ nhớ hoặc máy vào chế độ ngủ vẫn có thể ngừng thực thi; game xử lý tiếp thời gian còn thiếu khi được chạy lại.
 
@@ -225,5 +226,7 @@ Nút **Tạm dừng** vẫn dừng trận theo yêu cầu của bạn. Thắng, 
 Đánh dấu **Tự động đấu lại (5s)** ở hàng điều khiển phía trên bản đồ. Mặc định tùy chọn này tắt. Sau mỗi trận thắng, thua hoặc hòa, bảng kết quả đếm ngược 5 giây thực rồi tự tạo và bắt đầu trận mới. Tốc độ mô phỏng 0,5× / 1× / 2× không đổi độ dài đếm ngược. Tên, màu xe, số bot, cấp bot, HP, tốc độ và checkbox được giữ qua các trận; bản đồ và diễn biến tạo mới.
 
 Bỏ chọn checkbox để hủy đếm ngược. Nếu bật lại khi đang xem kết quả, bắt đầu một lượt đếm ngược 5 giây mới. Nhấn Đặt lại hoặc Đấu lại bằng tay cũng hủy lịch cũ. Tính năng vẫn hoạt động khi tab chạy nền, theo nhịp xử lý mà trình duyệt cho phép.
+
+Nếu trình duyệt trì hoãn nhịp nền, game tính hạn đấu lại từ thời điểm trận kết thúc trong phần mô phỏng đã xử lý bù. Khi quá hạn, trận mới bắt đầu ngay khi game được chạy tiếp và log đã lưu xong; không đếm thêm 5 giây từ lúc quay lại tab. Sau khi cập nhật bản sửa này, đóng cửa sổ khởi chạy cũ và mở lại `MO-GAME-TU-LUU-LOG.cmd`, rồi nhấn **Ctrl + F5** để nạp mã mới cùng tệp luồng nền.
 
 Khi chạy bằng chương trình tự lưu log, game chờ lưu thành công trước khi tự đấu lại. Nếu quá 5 giây mà vẫn đang ghi, bảng kết quả báo đang chờ. Nếu lưu thất bại, game giữ kết quả và báo lỗi để bạn lưu thủ công hoặc chủ động Đấu lại. Mở index.html trực tiếp vẫn tự đấu lại được nhưng không tự lưu vào ổ D:; muốn thu thập log nhiều trận, hãy dùng MO-GAME-TU-LUU-LOG.cmd.

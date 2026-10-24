@@ -43,6 +43,9 @@ class ThuLuuLog(unittest.TestCase):
     def test_game_co_script_tu_luu(self):
         with urlopen(self.url+'/index.html') as r:
             self.assertIn('tu-luu-log.js',r.read().decode())
+        with urlopen(self.url+'/nhip-nen.js') as r:
+            self.assertIn('postMessage', r.read().decode())
+            self.assertIn('javascript', r.headers['Content-Type'])
         with self.assertRaises(HTTPError) as c: urlopen(self.url+'/khoi-chay.py')
         self.assertEqual(c.exception.code,404)
 
